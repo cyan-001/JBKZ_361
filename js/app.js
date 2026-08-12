@@ -101,11 +101,17 @@
       || vs.filter(function (v) { return /^zh/i.test(v.lang); })[0]
       || null;
   }
+  function zhVoices() {
+    try {
+      return window.speechSynthesis.getVoices().filter(function (v) { return /^zh/i.test(v.lang); });
+    } catch (e) { return []; }
+  }
   if (SUPPORTED) {
     voice = pickVoice();
     window.speechSynthesis.onvoiceschanged = function () {
       voice = pickVoice();
       updateVoiceTip();
+      updateVoiceBtn();
     };
   }
 
@@ -247,7 +253,35 @@
   function updateVoiceTip() {
     var el = document.getElementById("voice-tip");
     if (!el) return;
-    el.textContent = voice ? "当前语音：" + voice.name : "使用系统默认中文语音";
+    el.textContent = voice
+      ? "当前语音：" + voice.name + "（点「声音」可切换；更多语音在 iPhone 设置→辅助功能→朗读内容→语音下载）"
+      : "使用系统默认中文语音";
+  }
+
+  function updateVoiceBtn() {
+    var el = document.getElementById("btn-voice");
+    if (!el) return;
+    var name = voice ? voice.name : "默认";
+    el.textContent = "声音：" + (name.length > 12 ? name.slice(0, 12) + "…" : name);
+  }
+
+  function nextVoice() {
+    if (!SUPPORTED) { showFallback(); return; }
+    var vs = zhVoices();
+    if (!vs.length) { setStatus("没有可切换的中文语音，请先到 iPhone 设置里下载"); return; }
+    var idx = voice ? vs.indexOf(voice) : -1;
+    voice = vs[(idx + 1) % vs.length];
+    updateVoiceTip();
+    updateVoiceBtn();
+    if (playing || paused) {
+      var keep = current >= 0 ? current : 0;
+      stop();
+      playing = true;
+      setPlayIcon();
+      speakIndex(keep);
+    } else {
+      setStatus("已切换到：" + voice.name);
+    }
   }
 
   function showFallback() {
@@ -279,9 +313,11 @@
     var el = document.getElementById("btn-rate");
     if (el) el.textContent = "倍速 " + rate.toFixed(2).replace(/0$/, "") + "×";
   });
+  bind("btn-voice", nextVoice);
   bind("btn-done", markDone);
   setPlayIcon();
   updateProgress();
+  updateVoiceBtn();
 
   /* ---------- 目录 / 导航 弹层 ---------- */
   var overlay = document.getElementById("sheet-overlay");
