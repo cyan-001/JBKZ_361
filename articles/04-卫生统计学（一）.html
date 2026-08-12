@@ -9,27 +9,38 @@
 记忆：t 管两组、F 管多组、χ² 管计数、秩和管偏态与等级。</div></div><div style="background-color:#e8f7ee;border-left:4px solid #16a34a;border-radius:8px;padding:14px 16px;margin:16px 0;"><div style="font-size:15px;font-weight:700;color:#15803d;margin-bottom:6px;">记忆锦囊 · α 错误与 β 错误</div><div style="font-size:15px;line-height:1.9;color:#14532d;white-space:pre-wrap;">Ⅰ型错误 α＝拒绝了实际上正确的 H0（“冤枉好人”，假阳性）；
 Ⅱ型错误 β＝接受了实际上错误的 H0（“放过坏人”，假阴性）；
 检验效能＝1−β。α 越小越保守，β 越小检验效能越高（样本量 n 增大可同时降低两者风险）。</div></div></div></article><div class="page-nav"><a class="prev" href="03-医学免疫（三）.html"><span class="dir">← 上一篇</span>医学免疫（三）</a><a class="next" href="05-卫生统计学（二）.html"><span class="dir">下一篇 →</span>卫生统计学（二）</a></div><div id="reading-state" class="state na" style="text-align:center;font-size:13px;"></div></main>
-<button class="cd-btn" id="cd-btn" aria-label="播放器"><span>361</span></button>
+<div class="tts-mini" id="tts-mini">
+  <button class="btn-circle btn-circle-sm" id="mini-play" title="播放/暂停">
+    <span class="ico ico-play"></span><span class="ico ico-pause"></span>
+  </button>
+  <div class="mini-mid">
+    <div class="mini-info">
+      <span class="eq paused" id="mini-eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+      <span class="song" id="mini-title">卫生统计学（一）</span>
+      <span class="prog" id="mini-prog"></span>
+    </div>
+    <div class="tts-progress"><span id="mini-bar-fill"></span></div>
+  </div>
+  <button class="btn-triangle" id="btn-expand" title="展开播放器">
+    <span class="ico ico-up"></span>
+  </button>
+</div>
 <div class="tts-bar" id="tts-panel">
   <div class="tts-handle" id="tts-handle" title="收起播放器"></div>
   <div class="tts-inner">
-    <div class="tts-meta">
-      <span class="eq paused" id="tts-eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
-      <span class="song">卫生统计学（一）</span>
-      <span class="prog" id="tts-prog"></span>
-    </div>
     <div class="tts-controls">
       <button class="btn-mini" id="btn-toc"><span class="ico ico-list"></span>目录</button>
+      <button class="btn-mini" id="btn-rate">倍速 1×</button>
       <button class="btn-circle" id="btn-play" title="播放/暂停">
         <span class="ico ico-play"></span><span class="ico ico-pause"></span>
       </button>
-      <button class="btn-mini" id="btn-rate">倍速 1×</button>
       <button class="btn-mini" id="btn-done">标记已读</button>
       <div class="more-wrap">
         <button class="btn-round" id="btn-more" title="更多功能"><span class="ico ico-dots"></span></button>
         <div class="more-menu" id="more-menu">
           <div class="more-info" id="more-status"></div>
           <div class="more-info" id="more-voice"></div>
+          <div class="more-info" id="more-voice-list"></div>
           <button class="btn-mini" id="btn-stop"><span class="ico ico-stop"></span>停止</button>
           <button class="btn-mini" id="btn-prev"><span class="ico ico-prev"></span>上一句</button>
           <button class="btn-mini" id="btn-next"><span class="ico ico-next"></span>下一句</button>
@@ -42,7 +53,6 @@
             <b>电脑 Edge：</b>地址栏右侧“大声朗读”。<br>
             <b>安卓 Chrome：</b>菜单 → 朗读网页（部分版本支持）。
           </div>
-          <button class="btn-mini" id="btn-collapse">收起面板</button>
         </div>
       </div>
     </div>

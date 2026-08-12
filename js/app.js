@@ -44,14 +44,24 @@
       el.className = "state " + (cur.done ? "done" : "todo");
     }
   }
-  function markDone() {
+  function toggleDone() {
     if (!articleId) return;
     var all = loadAll();
     var cur = all[articleId] || {};
-    cur.done = true; cur.ratio = 100;
+    cur.done = !cur.done;
+    if (cur.done) cur.ratio = 100;
     all[articleId] = cur;
     saveAll(all);
-    saveReading(1);
+    updateDoneBtn(cur.done);
+    var el = document.getElementById("reading-state");
+    if (el) {
+      el.textContent = cur.done ? "已完成 ✅" : "已读 " + (cur.ratio || 0) + "%";
+      el.className = "state " + (cur.done ? "done" : "todo");
+    }
+  }
+  function updateDoneBtn(done) {
+    var el = document.getElementById("btn-done");
+    if (el) el.classList.toggle("done", !!done);
   }
 
   /* ---------- 分句 ---------- */
@@ -82,6 +92,7 @@
         if (!p.trim()) return;
         var span = document.createElement("span");
         span.className = "sent";
+        span.setAttribute("data-i", sentences.length);
         span.textContent = p;
         frag.appendChild(span);
         sentences.push({ el: span, text: p.trim() });
@@ -96,12 +107,7 @@
 
   /* ---------- 语音 ---------- */
   function pickVoice() {
-    var vs = zhVoices();
-    var pref = preferredVoice();
-    if (pref) return pref;
-    return vs.filter(function (v) { return /zh[-_](CN|Hans)/i.test(v.lang + " " + v.name); })[0]
-      || vs.filter(function (v) { return /^zh/i.test(v.lang); })[0]
-      || null;
+    return preferredVoice() || null;
   }
   function zhVoices() {
     try {
@@ -114,6 +120,7 @@
       voice = pickVoice();
       updateVoiceTip();
       updateVoiceBtn();
+      updateVoiceList();
     };
   }
 
@@ -149,8 +156,9 @@
     var speakText = cleanForSpeech(sentences[i].text);
     if (!speakText) { advanceAfterSilence(); return; }
     var u = new SpeechSynthesisUtterance(speakText);
-    if (voice) u.voice = voice;
-    u.lang = voice ? voice.lang : "zh-CN";
+    var hasVoice = voice && zhVoices().indexOf(voice) >= 0;
+    if (hasVoice) u.voice = voice;
+    u.lang = hasVoice && voice.lang ? voice.lang : "zh-CN";
     u.rate = rate;
     u.onend = function () {
       if (playing) {
@@ -259,37 +267,44 @@
   }
 
   function setPlayIcon() {
-    var el = document.getElementById("btn-play");
-    var eq = document.getElementById("tts-eq");
-    if (el) el.classList.toggle("playing", playing);
-    if (eq) eq.classList.toggle("paused", !playing);
-    var cd = document.getElementById("cd-btn");
-    if (cd) cd.classList.toggle("playing", playing);
+    ["btn-play", "mini-play"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.classList.toggle("playing", playing);
+    });
+    ["tts-eq", "mini-eq"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.classList.toggle("paused", !playing);
+    });
   }
 
   function updateProgress() {
-    var bar = document.getElementById("tts-bar-fill");
-    if (!bar) return;
     var p = sentences.length ? (current + 1) / sentences.length : 0;
-    bar.style.width = (p * 100).toFixed(1) + "%";
-    var prog = document.getElementById("tts-prog");
-    if (prog) prog.textContent = sentences.length ? "第 " + (current + 1) + " / " + sentences.length + " 句" : "";
+    var txt = sentences.length ? "第 " + (current + 1) + " / " + sentences.length + " 句" : "";
+    ["tts-bar-fill", "mini-bar-fill"].forEach(function (id) {
+      var bar = document.getElementById(id);
+      if (bar) bar.style.width = (p * 100).toFixed(1) + "%";
+    });
+    ["tts-prog", "mini-prog"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.textContent = txt;
+    });
   }
 
   var statusEl = document.getElementById("more-status");
   function setStatus(t) { if (statusEl) statusEl.textContent = t; }
 
   var panel = document.getElementById("tts-panel");
-  var cdBtn = document.getElementById("cd-btn");
+  var mini = document.getElementById("tts-mini");
   var moreMenu = document.getElementById("more-menu");
 
-  function openPanel() {
+  function expandPanel() {
     if (panel) panel.classList.add("open");
-    if (cdBtn) cdBtn.style.display = "none";
+    if (mini) mini.classList.add("hidden");
+    if (moreMenu) moreMenu.classList.remove("open");
   }
-  function closePanel() {
+  function collapseToMini() {
     if (panel) panel.classList.remove("open");
-    if (cdBtn) cdBtn.style.display = "";
+    if (mini) mini.classList.remove("hidden");
     if (moreMenu) moreMenu.classList.remove("open");
   }
   function toggleMore(e) {
@@ -308,27 +323,45 @@
   function updateVoiceBtn() {
     var el = document.getElementById("btn-voice");
     if (!el) return;
-    var name = voice ? voice.name : "默认";
+    var name = voice ? voice.name : "系统默认";
     el.textContent = "声音：" + (name.length > 12 ? name.slice(0, 12) + "…" : name);
+  }
+
+  function updateVoiceList() {
+    var el = document.getElementById("more-voice-list");
+    if (!el) return;
+    var vs = zhVoices();
+    el.textContent = vs.length
+      ? "可用语音：" + vs.map(function (v) { return v.name; }).join("；")
+      : "可用语音：暂无（使用系统默认）";
   }
 
   function nextVoice() {
     if (!SUPPORTED) { showFallback(); return; }
     var vs = zhVoices();
-    if (!vs.length) { setStatus("没有可切换的中文语音，请先到 iPhone 设置里下载"); return; }
     var idx = voice ? vs.indexOf(voice) : -1;
-    voice = vs[(idx + 1) % vs.length];
-    saveVoiceName(voice.name);
+    if (!vs.length) {
+      voice = null;
+      saveVoiceName("");
+      setStatus("没有可切换的语音，跟随 iPhone 设置");
+    } else if (idx === vs.length - 1) {
+      voice = null;
+      saveVoiceName("");
+      setStatus("已切回系统默认语音（跟随 iPhone 设置）");
+    } else {
+      voice = vs[(idx + 1) % vs.length];
+      saveVoiceName(voice.name);
+      setStatus("已切换到：" + voice.name);
+    }
     updateVoiceTip();
     updateVoiceBtn();
+    updateVoiceList();
     if (playing || paused) {
       var keep = current >= 0 ? current : 0;
       stop();
       playing = true;
       setPlayIcon();
       speakIndex(keep);
-    } else {
-      setStatus("已切换到：" + voice.name);
     }
   }
 
@@ -359,10 +392,10 @@
     if (el) el.textContent = "倍速 " + rate.toFixed(2).replace(/0$/, "") + "×";
   });
   bind("btn-voice", function (e) { e.stopPropagation(); nextVoice(); });
-  bind("btn-done", markDone);
-  bind("cd-btn", openPanel);
-  bind("tts-handle", closePanel);
-  bind("btn-collapse", closePanel);
+  bind("btn-done", toggleDone);
+  bind("mini-play", togglePlay);
+  bind("btn-expand", expandPanel);
+  bind("tts-handle", collapseToMini);
   bind("btn-more", toggleMore);
   document.addEventListener("click", function () {
     if (moreMenu) moreMenu.classList.remove("open");
@@ -472,15 +505,42 @@
   if (SUPPORTED) {
     try { window.speechSynthesis.getVoices(); } catch (e) {}
     updateVoiceTip();
+    updateVoiceList();
   } else {
     showFallback();
   }
   splitSentences();
   onScroll();
 
+  /* 双击正文 → 从该句开始朗读 */
+  if (content) {
+    content.addEventListener("dblclick", function (e) {
+      if (!SUPPORTED) { showFallback(); return; }
+      var t = e.target;
+      var s = t && t.closest ? t.closest(".sent") : null;
+      var idx = s ? parseInt(s.getAttribute("data-i"), 10) : -1;
+      if (idx < 0) {
+        var y = e.clientY, best = -1, bd = 1e9;
+        sentences.forEach(function (it, i) {
+          if (!it.el) return;
+          var r = it.el.getBoundingClientRect();
+          var d = Math.abs(r.top + r.height / 2 - y);
+          if (d < bd) { bd = d; best = i; }
+        });
+        idx = best;
+      }
+      if (idx < 0 || !sentences[idx]) return;
+      stop();
+      playing = true;
+      setPlayIcon();
+      speakIndex(idx);
+    });
+  }
+
   var stateEl = document.getElementById("reading-state");
   if (stateEl && articleId) {
     var st = loadAll()[articleId];
+    updateDoneBtn(st && st.done);
     if (st && st.done) { stateEl.textContent = "已完成 ✅"; stateEl.className = "state done"; }
     else if (st && st.ratio) { stateEl.textContent = "已读 " + st.ratio + "%"; stateEl.className = "state todo"; }
   }

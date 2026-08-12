@@ -3,27 +3,38 @@
 被动-主动联合：如暴露后同时注射白喉抗毒素＋白喉类毒素，兼顾“立即保护＋持久免疫”。</div></div><div style="background-color:#e8f7ee;border-left:4px solid #16a34a;border-radius:8px;padding:14px 16px;margin:16px 0;"><div style="font-size:15px;font-weight:700;color:#15803d;margin-bottom:6px;">记忆锦囊 · 免疫程序与疫苗需要量</div><div style="font-size:15px;line-height:1.9;color:#14532d;white-space:pre-wrap;">基础免疫疫苗需要量＝出生人口数×每人次剂量×接种次数×损耗系数。
 常规接种时间点：乙肝（出生 24h 内首针）、卡介苗（出生）、脊灰/百白破（2、3、4 月龄基础）、麻疹（8 月龄）——具体以国家免疫规划现行程序为准。</div></div><div style="background-color:#e8f7ee;border-left:4px solid #16a34a;border-radius:8px;padding:14px 16px;margin:16px 0;"><div style="font-size:15px;font-weight:700;color:#15803d;margin-bottom:6px;">记忆锦囊 · 疫苗效果评价</div><div style="font-size:15px;line-height:1.9;color:#14532d;white-space:pre-wrap;">流行病学效果指标：疫苗保护率（现场研究）、效果指数（暴发调查/病例对照）。
 保护率＝（对照组发病率−接种组发病率）/对照组发病率×100%。</div></div></div></article><div class="page-nav"><a class="prev" href="18-急慢性传染病（五）.html"><span class="dir">← 上一篇</span>急慢性传染病（五）</a><a class="next" href="20-寄生虫病（一）.html"><span class="dir">下一篇 →</span>寄生虫病（一）</a></div><div id="reading-state" class="state na" style="text-align:center;font-size:13px;"></div></main>
-<button class="cd-btn" id="cd-btn" aria-label="播放器"><span>361</span></button>
+<div class="tts-mini" id="tts-mini">
+  <button class="btn-circle btn-circle-sm" id="mini-play" title="播放/暂停">
+    <span class="ico ico-play"></span><span class="ico ico-pause"></span>
+  </button>
+  <div class="mini-mid">
+    <div class="mini-info">
+      <span class="eq paused" id="mini-eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+      <span class="song" id="mini-title">预防接种</span>
+      <span class="prog" id="mini-prog"></span>
+    </div>
+    <div class="tts-progress"><span id="mini-bar-fill"></span></div>
+  </div>
+  <button class="btn-triangle" id="btn-expand" title="展开播放器">
+    <span class="ico ico-up"></span>
+  </button>
+</div>
 <div class="tts-bar" id="tts-panel">
   <div class="tts-handle" id="tts-handle" title="收起播放器"></div>
   <div class="tts-inner">
-    <div class="tts-meta">
-      <span class="eq paused" id="tts-eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
-      <span class="song">预防接种</span>
-      <span class="prog" id="tts-prog"></span>
-    </div>
     <div class="tts-controls">
       <button class="btn-mini" id="btn-toc"><span class="ico ico-list"></span>目录</button>
+      <button class="btn-mini" id="btn-rate">倍速 1×</button>
       <button class="btn-circle" id="btn-play" title="播放/暂停">
         <span class="ico ico-play"></span><span class="ico ico-pause"></span>
       </button>
-      <button class="btn-mini" id="btn-rate">倍速 1×</button>
       <button class="btn-mini" id="btn-done">标记已读</button>
       <div class="more-wrap">
         <button class="btn-round" id="btn-more" title="更多功能"><span class="ico ico-dots"></span></button>
         <div class="more-menu" id="more-menu">
           <div class="more-info" id="more-status"></div>
           <div class="more-info" id="more-voice"></div>
+          <div class="more-info" id="more-voice-list"></div>
           <button class="btn-mini" id="btn-stop"><span class="ico ico-stop"></span>停止</button>
           <button class="btn-mini" id="btn-prev"><span class="ico ico-prev"></span>上一句</button>
           <button class="btn-mini" id="btn-next"><span class="ico ico-next"></span>下一句</button>
@@ -36,7 +47,6 @@
             <b>电脑 Edge：</b>地址栏右侧“大声朗读”。<br>
             <b>安卓 Chrome：</b>菜单 → 朗读网页（部分版本支持）。
           </div>
-          <button class="btn-mini" id="btn-collapse">收起面板</button>
         </div>
       </div>
     </div>

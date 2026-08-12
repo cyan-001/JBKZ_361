@@ -43,6 +43,7 @@ body {
   background: #fff; border-radius: 14px; padding: 10px 14px 20px;
   box-shadow: 0 2px 10px rgba(10,61,56,.06);
 }
+#article-content { touch-action: manipulation; }
 
 /* ---------- TTS player (glassmorphism, Apple Music style) ---------- */
 .tts-bar {
@@ -125,28 +126,53 @@ body {
   line-height: 1.9; display: none; }
 .tts-fallback { font-size: 12px; color: #b45309; margin-top: 6px; line-height: 1.7; }
 
-/* ---------- CD mini button ---------- */
-.cd-btn {
-  position: fixed; left: 14px; bottom: calc(14px + env(safe-area-inset-bottom));
-  z-index: 160; width: 60px; height: 60px; border-radius: 50%; border: none;
-  cursor: pointer; color: var(--gold); font-size: 12px; font-weight: 700;
-  background: radial-gradient(circle at 35% 30%, #1e8377, #0a3d38 72%);
-  box-shadow: 0 12px 28px rgba(10,61,56,.38),
-              inset 0 0 0 4px rgba(232,200,122,.5),
-              inset 0 0 0 7px rgba(10,61,56,.4);
-  display: flex; align-items: center; justify-content: center;
+/* ---------- 迷你播放条（收起态） ---------- */
+.tts-mini {
+  position: fixed; bottom: 14px; left: 50%;
+  width: min(calc(100% - 24px), 150px);
+  background: rgba(255,255,255,.66);
+  -webkit-backdrop-filter: blur(22px) saturate(1.6);
+  backdrop-filter: blur(22px) saturate(1.6);
+  border: 1px solid rgba(255,255,255,.6);
+  border-radius: 22px;
+  box-shadow: 0 12px 34px rgba(10,61,56,.22);
+  z-index: 150;
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 8px;
+  transform: translate(-50%, 0);
+  opacity: 1;
+  transition: transform .32s cubic-bezier(.32,.72,.28,1), opacity .28s ease;
+  pointer-events: auto;
 }
-.cd-btn::before {
-  content: ""; position: absolute; inset: 9px; border-radius: 50%;
-  border: 1px dashed rgba(232,200,122,.85);
+.tts-mini.hidden {
+  transform: translate(-50%, 140%);
+  opacity: 0;
+  pointer-events: none;
 }
-.cd-btn.playing::before { animation: cdspin 6s linear infinite; }
-.cd-btn::after {
-  content: ""; position: absolute; width: 7px; height: 7px; border-radius: 50%;
-  background: rgba(255,255,255,.85);
+.btn-circle-sm { width: 40px; height: 40px; font-size: 15px; flex: none; }
+.mini-mid { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.mini-info { display: flex; align-items: center; gap: 5px; font-size: 11px; }
+.mini-info .song { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-weight: 700; color: #111827; }
+.mini-info .prog { color: #6b7280; white-space: nowrap; }
+.tts-mini .tts-progress { margin: 0; }
+.btn-triangle {
+  flex: none; width: 32px; height: 32px; border-radius: 50%; border: none;
+  background: rgba(14,95,87,.09); color: var(--teal);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  transition: transform .15s ease;
 }
-@keyframes cdspin { to { transform: rotate(360deg); } }
-.cd-btn:active { transform: scale(.94); }
+.btn-triangle:active { transform: scale(.88); }
+.ico-up {
+  width: 9px; height: 9px;
+  border-right: 2px solid #0e5f57;
+  border-top: 2px solid #0e5f57;
+  transform: rotate(-45deg);
+  margin-top: 3px;
+}
+
+/* 标记已读：已读状态颜色反转 */
+.btn-mini.done { background: var(--teal); color: #ffffff; }
 
 /* ---------- 功能折叠菜单 ---------- */
 .more-wrap { position: relative; }
