@@ -12,6 +12,7 @@
       <button class="btn-round" id="btn-next" title="下一句">⏭</button>
     </div>
     <div class="tts-minis">
+      <button class="btn-mini" id="btn-toc">☰ 目录</button>
       <button class="btn-mini" id="btn-stop">⏹ 停止</button>
       <button class="btn-mini" id="btn-rate">倍速 1×</button>
       <button class="btn-mini" id="btn-done">标记已读</button>
@@ -33,5 +34,21 @@
       · 苹果手机：设置→辅助功能→朗读内容→朗读屏幕（双指从屏幕顶部下滑）；<br>
       · 安卓 Chrome：菜单→朗读网页（部分版本）。
     </div>
+  </div>
+</div>
+<div class="sheet-overlay" id="sheet-overlay"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="目录与导航">
+  <div class="sheet-handle"></div>
+  <div class="sheet-head">
+    <span class="tt">健康教育与健康促进（二）</span>
+    <button class="sheet-close" id="sheet-close" title="关闭">✕</button>
+  </div>
+  <div class="sheet-tabs">
+    <button class="sheet-tab active" data-tab="toc">📖 本文目录</button>
+    <button class="sheet-tab" data-tab="series">🗂 全系列导航</button>
+  </div>
+  <div class="sheet-body">
+    <div class="sheet-pane active" id="pane-toc"><div class="toc-empty">正在生成目录…</div></div>
+    <div class="sheet-pane" id="pane-series"><a class="series-item" href="01-医学免疫（一）.html"><span class="no">01</span><span class="tt">医学免疫（一）</span><span class="st">基础知识</span></a><a class="series-item" href="02-医学免疫（二）.html"><span class="no">02</span><span class="tt">医学免疫（二）</span><span class="st">基础知识</span></a><a class="series-item" href="03-医学免疫（三）.html"><span class="no">03</span><span class="tt">医学免疫（三）</span><span class="st">基础知识</span></a><a class="series-item" href="04-卫生统计学（一）.html"><span class="no">04</span><span class="tt">卫生统计学（一）</span><span class="st">基础知识</span></a><a class="series-item" href="05-卫生统计学（二）.html"><span class="no">05</span><span class="tt">卫生统计学（二）</span><span class="st">基础知识</span></a><a class="series-item" href="06-卫生法.html"><span class="no">06</span><span class="tt">卫生法</span><span class="st">基础知识</span></a><a class="series-item" href="07-卫生经济与医学伦理学.html"><span class="no">07</span><span class="tt">卫生经济与医学伦理学</span><span class="st">基础知识</span></a><a class="series-item" href="08-流行病学（一）.html"><span class="no">08</span><span class="tt">流行病学（一）</span><span class="st">相关专业知识</span></a><a class="series-item" href="09-流行病学（二）.html"><span class="no">09</span><span class="tt">流行病学（二）</span><span class="st">相关专业知识</span></a><a class="series-item" href="10-健康教育与健康促进（一）.html"><span class="no">10</span><span class="tt">健康教育与健康促进（一）</span><span class="st">相关专业知识</span></a><a class="series-item current" href="11-健康教育与健康促进（二）.html"><span class="no">11</span><span class="tt">健康教育与健康促进（二）</span><span class="st">相关专业知识</span></a><a class="series-item" href="12-社会医学.html"><span class="no">12</span><span class="tt">社会医学</span><span class="st">相关专业知识</span></a><a class="series-item" href="13-卫生信息管理与应用.html"><span class="no">13</span><span class="tt">卫生信息管理与应用</span><span class="st">相关专业知识</span></a><a class="series-item" href="14-急慢性传染病（一）.html"><span class="no">14</span><span class="tt">急慢性传染病（一）</span><span class="st">专业知识和专业实践能力</span></a><a class="series-item" href="15-急慢性传染病（二）.html"><span class="no">15</span><span class="tt">急慢性传染病（二）</span><span class="st">专业知识和专业实践能力</span></a><a class="series-item" href="16-急慢性传染病（三）.html"><span class="no">16</span><span class="tt">急慢性传染病（三）</span><span class="st">专业知识和专业实践能力</span></a><a class="series-item" href="17-急慢性传染病（四）.html"><span class="no">17</span><span class="tt">急慢性传染病（四）</span><span class="st">专业知识和专业实践能力</span></a><a class="series-item" href="18-急慢性传染病（五）.html"><span class="no">18</span><span class="tt">急慢性传染病（五）</span><span class="st">专业知识和专业实践能力</span></a><a class="series-item" href="19-预防接种.html"><span class="no">19</span><span class="tt">预防接种</span><span class="st">专业知识和专业实践能力</span></a><a class="series-item" href="20-寄生虫病（一）.html"><span class="no">20</span><span class="tt">寄生虫病（一）</span><span class="st">专业知识和专业实践能力</span></a><a class="series-item" href="21-寄生虫病（二）.html"><span class="no">21</span><span class="tt">寄生虫病（二）</span><span class="st">专业知识和专业实践能力</span></a><a class="series-item" href="22-地方病.html"><span class="no">22</span><span class="tt">地方病</span><span class="st">专业知识和专业实践能力</span></a><a class="series-item" href="23-慢性非传染性疾病（一）.html"><span class="no">23</span><span class="tt">慢性非传染性疾病（一）</span><span class="st">专业知识和专业实践能力</span></a><a class="series-item" href="24-慢性非传染性疾病（二）.html"><span class="no">24</span><span class="tt">慢性非传染性疾病（二）</span><span class="st">专业知识和专业实践能力</span></a></div>
   </div>
 </div><footer class="site-foot">公卫中级 · 疾病控制（361）每日复习站 · 进度保存在本机浏览器</footer><script src="./js/app.js"></script></body></html>

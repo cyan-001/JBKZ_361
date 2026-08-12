@@ -261,6 +261,84 @@
   setPlayIcon();
   updateProgress();
 
+  /* ---------- 目录 / 导航 弹层 ---------- */
+  var overlay = document.getElementById("sheet-overlay");
+  var sheet = document.getElementById("sheet");
+  var tocPane = document.getElementById("pane-toc");
+
+  function openSheet() {
+    if (overlay) overlay.classList.add("open");
+    if (sheet) sheet.classList.add("open");
+    document.body.style.overflow = "hidden";
+  }
+  function closeSheet() {
+    if (overlay) overlay.classList.remove("open");
+    if (sheet) sheet.classList.remove("open");
+    document.body.style.overflow = "";
+  }
+  bind("btn-toc", openSheet);
+  bind("sheet-close", closeSheet);
+  if (overlay) overlay.addEventListener("click", closeSheet);
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") closeSheet();
+  });
+
+  // Tab 切换
+  document.querySelectorAll(".sheet-tab").forEach(function (tab) {
+    tab.addEventListener("click", function () {
+      document.querySelectorAll(".sheet-tab").forEach(function (t) { t.classList.remove("active"); });
+      document.querySelectorAll(".sheet-pane").forEach(function (p) { p.classList.remove("active"); });
+      tab.classList.add("active");
+      var pane = document.getElementById("pane-" + tab.getAttribute("data-tab"));
+      if (pane) pane.classList.add("active");
+    });
+  });
+
+  // 自动生成“本文目录”
+  function buildToc() {
+    if (!content || !tocPane) return;
+    var items = [];
+    var divs = content.querySelectorAll("div");
+    divs.forEach(function (el) {
+      var st = el.getAttribute("style") || "";
+      var text = (el.textContent || "").trim();
+      if (!text) return;
+      var level = 0;
+      if (/font-size:19px/.test(st) && /border-left/.test(st)) level = 1;
+      else if (/font-size:17px/.test(st)) level = 2;
+      else if (/background-color:#eaf5f2/.test(st)) level = 3;
+      if (!level) return;
+      text = text.replace(/^[▍\s]+/, "").replace(/★+$/, "").trim();
+      if (!text || text.length > 60) return;
+      items.push({ el: el, text: text, level: level });
+    });
+    if (!items.length) {
+      tocPane.innerHTML = '<div class="toc-empty">本篇没有小标题</div>';
+      return;
+    }
+    var html = items.map(function (it, idx) {
+      var dot = ["▍", "•", "·"][it.level - 1];
+      return '<button class="toc-item lv%d" data-i="%d"><span class="dot">%s</span><span class="tt">%s</span></button>'
+        .replace("%d", it.level).replace("%d", idx).replace("%s", dot)
+        .replace("%s", escHtml(it.text));
+    }).join("");
+    tocPane.innerHTML = html;
+    tocPane.querySelectorAll(".toc-item").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var it = items[parseInt(btn.getAttribute("data-i"), 10)];
+        if (it && it.el) {
+          try { it.el.scrollIntoView({ behavior: "smooth", block: "start" }); } catch (e) {}
+        }
+        closeSheet();
+      });
+    });
+  }
+  function escHtml(s) {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+  buildToc();
+
   /* ---------- 键盘 ---------- */
   document.addEventListener("keydown", function (e) {
     if (/INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
