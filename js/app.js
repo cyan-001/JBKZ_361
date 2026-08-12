@@ -113,7 +113,9 @@
     if (!SUPPORTED || i < 0 || i >= sentences.length) return;
     current = i;
     updateProgress();
-    var u = new SpeechSynthesisUtterance(sentences[i].text);
+    var speakText = cleanForSpeech(sentences[i].text);
+    if (!speakText) { advanceAfterSilence(); return; }
+    var u = new SpeechSynthesisUtterance(speakText);
     if (voice) u.voice = voice;
     u.lang = voice ? voice.lang : "zh-CN";
     u.rate = rate;
@@ -133,6 +135,26 @@
     highlight(current);
     window.speechSynthesis.speak(u);
     setStatus("正在朗读：第 " + (current + 1) + " / " + sentences.length + " 句");
+  }
+
+  function advanceAfterSilence() {
+    if (playing) {
+      if (current + 1 < sentences.length) {
+        speakIndex(current + 1);
+      } else {
+        stop();
+        setStatus("已读完 ✅");
+      }
+    }
+  }
+
+  // 剔除会被语音读出来的装饰字符（保留 ①②⑶ 等编号与数字）
+  var DECOR_RE = /[▸▍★☆◆⊙◇●◎○※→↳📐▪•·♪™®©¤†‡§¶]/g;
+  function cleanForSpeech(s) {
+    return s.replace(/→/g, "，")
+      .replace(DECOR_RE, " ")
+      .replace(/\u200b/g, "")
+      .replace(/\s{2,}/g, " ").trim();
   }
 
   function highlight(i) {
@@ -316,11 +338,16 @@
       tocPane.innerHTML = '<div class="toc-empty">本篇没有小标题</div>';
       return;
     }
+    var dotSizes = [8, 6, 4];
     var html = items.map(function (it, idx) {
-      var dot = ["▍", "•", "·"][it.level - 1];
-      return '<button class="toc-item lv%d" data-i="%d"><span class="dot">%s</span><span class="tt">%s</span></button>'
-        .replace("%d", it.level).replace("%d", idx).replace("%s", dot)
-        .replace("%s", escHtml(it.text));
+      var dot = '<span style="display:inline-block;width:%dpx;height:%dpx;border-radius:50%%;'
+        + 'background-color:%s;flex:none;vertical-align:middle;"></span>'
+        .replace("%d", dotSizes[it.level - 1])
+        .replace("%d", dotSizes[it.level - 1])
+        .replace("%s", it.level === 1 ? "#0e5f57" : it.level === 2 ? "#94a3b8" : "#cbd5e1");
+      return '<button class="toc-item lv%d" data-i="%d">%s<span class="tt">%s</span></button>'
+        .replace("%d", it.level).replace("%d", idx)
+        .replace("%s", dot).replace("%s", escHtml(it.text));
     }).join("");
     tocPane.innerHTML = html;
     tocPane.querySelectorAll(".toc-item").forEach(function (btn) {
