@@ -301,6 +301,28 @@ body {
   scroll-margin-top: 64px;
 }
 
+/* ---------- 右侧贴边上下滑动控制条 ---------- */
+#scroll-rail {
+  position: fixed; right: 4px; top: 50%; transform: translateY(-50%);
+  z-index: 140; width: 38px; height: 132px; border-radius: 19px;
+  display: flex; flex-direction: column; overflow: hidden;
+  background: rgba(255,255,255,.55);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  backdrop-filter: blur(18px) saturate(1.5);
+  border: 1px solid rgba(255,255,255,.55);
+  box-shadow: 0 8px 24px rgba(10,61,56,.16);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  #scroll-rail { background: rgba(255,255,255,.92); }
+}
+.scroll-btn {
+  flex: 1; border: none; background: transparent; color: #0e5f57;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  transition: background .15s ease, transform .15s ease;
+}
+.scroll-btn:active { background: rgba(14,95,87,.14); transform: scale(.9); }
+.scroll-up { border-bottom: 1px solid rgba(14,95,87,.12); }
+
 /* ---------- sentence highlight ---------- */
 .sent { border-radius: 3px; transition: background .2s; }
 .sent.reading { background: var(--read); box-shadow: 0 0 0 2px #fff1a8; }

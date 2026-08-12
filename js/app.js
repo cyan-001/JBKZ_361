@@ -516,10 +516,11 @@
   splitSentences();
   onScroll();
 
-  /* 双击正文 → 从该句开始朗读 */
+  /* 单击正文 → 从点击处开始朗读 */
   if (content) {
-    content.addEventListener("dblclick", function (e) {
+    content.addEventListener("click", function (e) {
       if (!SUPPORTED) { showFallback(); return; }
+      if (e.target.closest && e.target.closest("button, a, .sheet, .tts-bar, .tts-mini, #scroll-rail")) return;
       var t = e.target;
       var s = t && t.closest ? t.closest(".sent") : null;
       var idx = s ? parseInt(s.getAttribute("data-i"), 10) : -1;
@@ -540,6 +541,27 @@
       speakIndex(idx);
     });
   }
+
+  /* 右侧贴边上下滑动控制条 */
+  (function buildScrollRail() {
+    if (document.getElementById("scroll-rail")) return;
+    var rail = document.createElement("div");
+    rail.id = "scroll-rail";
+    rail.innerHTML =
+      '<button class="scroll-btn scroll-up" aria-label="向上滚动">' +
+        '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 6l8 8H4z"/></svg>' +
+      '</button>' +
+      '<button class="scroll-btn scroll-down" aria-label="向下滚动">' +
+        '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 18l-8-8h16z"/></svg>' +
+      '</button>';
+    document.body.appendChild(rail);
+    function scrollByScreen(dir) {
+      var h = window.innerHeight || document.documentElement.clientHeight;
+      window.scrollBy({ top: h * 0.8 * dir, behavior: "smooth" });
+    }
+    rail.querySelector(".scroll-up").addEventListener("click", function () { scrollByScreen(-1); });
+    rail.querySelector(".scroll-down").addEventListener("click", function () { scrollByScreen(1); });
+  })();
 
   var stateEl = document.getElementById("reading-state");
   if (stateEl && articleId) {
