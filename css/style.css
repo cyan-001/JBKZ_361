@@ -201,23 +201,13 @@ body {
 .ico { display: inline-block; vertical-align: middle; flex: none; }
 .btn-mini .ico, .btn-round .ico { margin-right: 6px; }
 .btn-round .ico { margin-right: 0; }
-.ico-play {
-  width: 0; height: 0;
-  border-left: 12px solid #ffffff;
-  border-top: 7px solid transparent;
-  border-bottom: 7px solid transparent;
-  margin-left: 3px;
-}
-.ico-pause {
-  width: 5px; height: 16px; background: #ffffff;
-  box-shadow: 7px 0 0 #ffffff;
-  display: none;
-}
+.btn-circle .ico-play { display: block; }
+.btn-circle .ico-pause { display: none; }
 .btn-circle.playing .ico-play { display: none; }
-.btn-circle.playing .ico-pause { display: inline-block; }
+.btn-circle.playing .ico-pause { display: block; }
 .btn-circle .ico { transition: transform .18s ease, opacity .18s ease; }
-.btn-circle:active .ico-play { transform: scale(.82); }
-.btn-circle:active .ico-pause { transform: scale(.82); }
+.btn-circle:active .ico-play { transform: scale(.85); }
+.btn-circle:active .ico-pause { transform: scale(.85); }
 .ico-prev, .ico-next {
   width: 8px; height: 8px;
   border-left: 2px solid #0e5f57;
@@ -383,8 +373,8 @@ footer.site-foot { text-align: center; font-size: 12px; color: var(--muted);
 
 @media (max-width: 520px) {
   .cards { grid-template-columns: repeat(2, 1fr); }
-  .btn-mini { padding: 6px 9px; font-size: 12px; }
-  .tts-controls { gap: 6px; }
+  .btn-mini { padding: 6px 8px; font-size: 12px; }
+  .tts-controls { gap: 4px; }
   .btn-circle { width: 50px; height: 50px; }
   .btn-mini .ico { margin-right: 4px; }
 }
