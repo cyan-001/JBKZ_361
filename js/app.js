@@ -290,8 +290,12 @@
     });
   }
 
-  var statusEl = document.getElementById("more-status");
-  function setStatus(t) { if (statusEl) statusEl.textContent = t; }
+  function setStatus(t) {
+    ["tts-status", "more-status"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.textContent = t;
+    });
+  }
 
   var panel = document.getElementById("tts-panel");
   var mini = document.getElementById("tts-mini");
