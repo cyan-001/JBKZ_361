@@ -210,6 +210,7 @@
 
   function play() {
     if (!SUPPORTED) { showFallback(); return; }
+    keepAudioSession(true);
     if (paused && current >= 0) {
       window.speechSynthesis.resume();
       paused = false;
@@ -232,6 +233,7 @@
     playing = false;
     setStatus("已暂停（点播放继续）");
     setPlayIcon();
+    keepAudioSession(false);
   }
 
   function stop() {
@@ -242,6 +244,7 @@
     setStatus("");
     setPlayIcon();
     updateProgress();
+    keepAudioSession(false);
   }
 
   function prevSentence() {
@@ -373,6 +376,30 @@
     setStatus("当前浏览器不支持网页朗读，可用系统朗读（设置→辅助功能→朗读内容→朗读屏幕）");
   }
 
+  /* 静音音频保活：让 iOS 在锁屏/切后台时尽量不中断网页朗读（实测为准） */
+  var bgCtx = null;
+  function keepAudioSession(on) {
+    try {
+      if (on) {
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        if (!bgCtx) {
+          bgCtx = new AC();
+          var buf = bgCtx.createBuffer(1, 1, 22050);
+          var src = bgCtx.createBufferSource();
+          src.buffer = buf;
+          src.loop = true;
+          var g = bgCtx.createGain();
+          g.gain.value = 0;
+          src.connect(g);
+          g.connect(bgCtx.destination);
+          src.start();
+        }
+        if (bgCtx.state === "suspended") bgCtx.resume();
+      }
+    } catch (e) {}
+  }
+
   /* ---------- 按钮绑定 ---------- */
   function bind(id, fn) {
     var el = document.getElementById(id);
@@ -428,6 +455,13 @@
   if (overlay) overlay.addEventListener("click", closeSheet);
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape") closeSheet();
+  });
+
+  /* 从后台/锁屏返回时尝试恢复朗读 */
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden && SUPPORTED && playing && !paused) {
+      try { window.speechSynthesis.resume(); } catch (e) {}
+    }
   });
 
   // Tab 切换
