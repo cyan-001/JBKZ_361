@@ -112,6 +112,7 @@
   function speakIndex(i) {
     if (!SUPPORTED || i < 0 || i >= sentences.length) return;
     current = i;
+    updateProgress();
     var u = new SpeechSynthesisUtterance(sentences[i].text);
     if (voice) u.voice = voice;
     u.lang = voice ? voice.lang : "zh-CN";
@@ -151,11 +152,13 @@
       paused = false;
       playing = true;
       setStatus("继续朗读：第 " + (current + 1) + " / " + sentences.length + " 句");
+      setPlayIcon();
       return;
     }
     if (playing) return;
     var start = current >= 0 && current < sentences.length - 1 ? current + 1 : 0;
     playing = true;
+    setPlayIcon();
     speakIndex(start);
   }
 
@@ -165,6 +168,7 @@
     paused = true;
     playing = false;
     setStatus("已暂停（点播放继续）");
+    setPlayIcon();
   }
 
   function stop() {
@@ -173,12 +177,15 @@
     if (SUPPORTED) window.speechSynthesis.cancel();
     highlight(-1);
     setStatus("");
+    setPlayIcon();
+    updateProgress();
   }
 
   function prevSentence() {
     if (current > 0) {
       stop();
       playing = true;
+      setPlayIcon();
       speakIndex(current - 1);
     }
   }
@@ -186,8 +193,30 @@
     if (current < sentences.length - 1) {
       stop();
       playing = true;
+      setPlayIcon();
       speakIndex(current + 1);
     }
+  }
+
+  function togglePlay() {
+    if (!SUPPORTED) { showFallback(); return; }
+    if (playing) pause(); else play();
+  }
+
+  function setPlayIcon() {
+    var el = document.getElementById("btn-play");
+    var eq = document.getElementById("tts-eq");
+    if (el) el.textContent = playing ? "❚❚" : "▶";
+    if (eq) eq.classList.toggle("paused", !playing);
+  }
+
+  function updateProgress() {
+    var bar = document.getElementById("tts-bar-fill");
+    if (!bar) return;
+    var p = sentences.length ? (current + 1) / sentences.length : 0;
+    bar.style.width = (p * 100).toFixed(1) + "%";
+    var prog = document.getElementById("tts-prog");
+    if (prog) prog.textContent = sentences.length ? "第 " + (current + 1) + " / " + sentences.length + " 句" : "";
   }
 
   var statusEl = document.getElementById("tts-status");
@@ -212,11 +241,15 @@
     var el = document.getElementById(id);
     if (el) el.addEventListener("click", fn);
   }
-  bind("btn-play", play);
+  bind("btn-play", togglePlay);
   bind("btn-pause", pause);
   bind("btn-stop", stop);
   bind("btn-prev", prevSentence);
   bind("btn-next", nextSentence);
+  bind("btn-help", function () {
+    var el = document.getElementById("tts-help");
+    if (el) el.style.display = el.style.display === "block" ? "none" : "block";
+  });
   bind("btn-rate", function () {
     var rates = [0.75, 1, 1.25, 1.5, 2];
     var idx = rates.indexOf(rate);
@@ -225,6 +258,8 @@
     if (el) el.textContent = "倍速 " + rate.toFixed(2).replace(/0$/, "") + "×";
   });
   bind("btn-done", markDone);
+  setPlayIcon();
+  updateProgress();
 
   /* ---------- 键盘 ---------- */
   document.addEventListener("keydown", function (e) {

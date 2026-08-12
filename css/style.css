@@ -44,23 +44,66 @@ body {
   box-shadow: 0 2px 10px rgba(10,61,56,.06);
 }
 
-/* ---------- TTS bar ---------- */
+/* ---------- TTS player (glassmorphism, Apple Music style) ---------- */
 .tts-bar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 150;
-  background: #ffffff; border-top: 1px solid #e3e9e7;
-  box-shadow: 0 -4px 14px rgba(10,61,56,.08);
+  background: rgba(255,255,255,.62);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  backdrop-filter: blur(24px) saturate(1.6);
+  border-top: 1px solid rgba(255,255,255,.6);
+  box-shadow: 0 -10px 36px rgba(10,61,56,.14);
 }
-.tts-inner { max-width: 780px; margin: 0 auto; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); }
-.tts-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.tts-btn {
-  border: 1px solid #cfdcd9; background: #fff; color: var(--teal);
-  border-radius: 999px; padding: 8px 16px; font-size: 14px; cursor: pointer;
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .tts-bar { background: rgba(255,255,255,.97); }
+}
+.tts-inner { max-width: 660px; margin: 0 auto; padding: 10px 16px calc(12px + env(safe-area-inset-bottom)); }
+.tts-meta { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.tts-meta .song { flex: 1; font-weight: 700; color: #111827; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.tts-meta .prog { color: #6b7280; white-space: nowrap; }
+.eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 12px; }
+.eq i { width: 3px; border-radius: 2px; background: var(--teal);
+  animation: eq 1s ease-in-out infinite; }
+.eq i:nth-child(2) { animation-delay: .12s; }
+.eq i:nth-child(3) { animation-delay: .24s; }
+.eq i:nth-child(4) { animation-delay: .36s; }
+.eq i:nth-child(5) { animation-delay: .18s; }
+.eq.paused i { animation-play-state: paused; height: 4px; }
+@keyframes eq { 0%,100% { height: 3px; } 50% { height: 12px; } }
+
+.tts-controls { display: flex; align-items: center; justify-content: center;
+  gap: 22px; margin-top: 6px; }
+.btn-circle {
+  width: 58px; height: 58px; border-radius: 50%; border: none;
+  background: linear-gradient(145deg, #1b7a70, #0e5f57); color: #fff;
+  font-size: 22px; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 8px 22px rgba(14,95,87,.38), inset 0 1px 0 rgba(255,255,255,.25);
+  cursor: pointer; font-family: inherit; line-height: 1;
+}
+.btn-circle:active { transform: scale(.94); }
+.btn-round {
+  width: 40px; height: 40px; border-radius: 50%; border: none;
+  background: rgba(14,95,87,.09); color: var(--teal); font-size: 15px;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
   font-family: inherit;
 }
-.tts-btn.primary { background: var(--teal); color: #fff; border-color: var(--teal); }
-.tts-btn:active { transform: scale(.97); }
-.tts-rate { font-size: 13px; color: var(--muted); margin-left: auto; white-space: nowrap; }
-.tts-status { font-size: 12px; color: var(--muted); margin-top: 6px; min-height: 16px; }
+.btn-round:active { transform: scale(.92); }
+.tts-minis { display: flex; justify-content: center; gap: 8px; margin-top: 8px; }
+.btn-mini {
+  border: none; background: rgba(14,95,87,.08); color: var(--teal);
+  border-radius: 999px; padding: 6px 12px; font-size: 12.5px; cursor: pointer;
+  font-family: inherit;
+}
+.btn-mini:active { transform: scale(.95); }
+.tts-progress { height: 3px; border-radius: 2px; background: rgba(14,95,87,.16);
+  margin-top: 10px; overflow: hidden; }
+.tts-progress > span { display: block; height: 100%; width: 0;
+  background: linear-gradient(90deg, #2a9d8f, var(--gold)); transition: width .25s ease; }
+.tts-status { font-size: 12px; color: var(--muted); margin-top: 7px; text-align: center;
+  min-height: 16px; }
+.tts-help { font-size: 12.5px; color: #14532d; background: rgba(232,247,238,.9);
+  border: 1px solid #cfe8d9; border-radius: 10px; padding: 10px 12px; margin-top: 8px;
+  line-height: 1.9; display: none; }
 .tts-fallback { font-size: 12px; color: #b45309; margin-top: 6px; line-height: 1.7; }
 
 /* ---------- sentence highlight ---------- */
