@@ -3,7 +3,8 @@
 被动-主动联合：如暴露后同时注射白喉抗毒素＋白喉类毒素，兼顾“立即保护＋持久免疫”。</div></div><div style="background-color:#e8f7ee;border-left:4px solid #16a34a;border-radius:8px;padding:14px 16px;margin:16px 0;"><div style="font-size:15px;font-weight:700;color:#15803d;margin-bottom:6px;">记忆锦囊 · 免疫程序与疫苗需要量</div><div style="font-size:15px;line-height:1.9;color:#14532d;white-space:pre-wrap;">基础免疫疫苗需要量＝出生人口数×每人次剂量×接种次数×损耗系数。
 常规接种时间点：乙肝（出生 24h 内首针）、卡介苗（出生）、脊灰/百白破（2、3、4 月龄基础）、麻疹（8 月龄）——具体以国家免疫规划现行程序为准。</div></div><div style="background-color:#e8f7ee;border-left:4px solid #16a34a;border-radius:8px;padding:14px 16px;margin:16px 0;"><div style="font-size:15px;font-weight:700;color:#15803d;margin-bottom:6px;">记忆锦囊 · 疫苗效果评价</div><div style="font-size:15px;line-height:1.9;color:#14532d;white-space:pre-wrap;">流行病学效果指标：疫苗保护率（现场研究）、效果指数（暴发调查/病例对照）。
 保护率＝（对照组发病率−接种组发病率）/对照组发病率×100%。</div></div></div></article><div class="page-nav"><a class="prev" href="18-急慢性传染病（五）.html"><span class="dir">← 上一篇</span>急慢性传染病（五）</a><a class="next" href="20-寄生虫病（一）.html"><span class="dir">下一篇 →</span>寄生虫病（一）</a></div><div id="reading-state" class="state na" style="text-align:center;font-size:13px;"></div></main>
-<div class="tts-bar">
+<button class="cd-btn" id="cd-btn" aria-label="播放器"><span>361</span></button>
+<div class="tts-bar" id="tts-panel">
   <div class="tts-inner">
     <div class="tts-meta">
       <span class="eq paused" id="tts-eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
@@ -11,17 +12,21 @@
       <span class="prog" id="tts-prog"></span>
     </div>
     <div class="tts-controls">
-      <button class="btn-round" id="btn-prev" title="上一句">⏮</button>
-      <button class="btn-circle" id="btn-play" title="播放/暂停">▶</button>
-      <button class="btn-round" id="btn-next" title="下一句">⏭</button>
-    </div>
-    <div class="tts-minis">
       <button class="btn-mini" id="btn-toc">☰ 目录</button>
-      <button class="btn-mini" id="btn-stop">⏹ 停止</button>
+      <button class="btn-circle" id="btn-play" title="播放/暂停">▶</button>
       <button class="btn-mini" id="btn-rate">倍速 1×</button>
       <button class="btn-mini" id="btn-done">标记已读</button>
-      <button class="btn-mini" id="btn-voice">声音：默认</button>
-      <button class="btn-mini" id="btn-help">🍎 系统朗读</button>
+      <div class="more-wrap">
+        <button class="btn-round" id="btn-more" title="更多功能">⋯</button>
+        <div class="more-menu" id="more-menu">
+          <button class="btn-mini" id="btn-stop">⏹ 停止</button>
+          <button class="btn-mini" id="btn-prev">◀ 上一句</button>
+          <button class="btn-mini" id="btn-next">下一句 ▶</button>
+          <button class="btn-mini" id="btn-voice">声音：默认</button>
+          <button class="btn-mini" id="btn-help">🍎 系统朗读说明</button>
+          <button class="btn-mini" id="btn-collapse">收起面板</button>
+        </div>
+      </div>
     </div>
     <div class="tts-progress"><span id="tts-bar-fill"></span></div>
     <div class="tts-status" id="tts-status"></div>

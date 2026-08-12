@@ -236,6 +236,8 @@
     var eq = document.getElementById("tts-eq");
     if (el) el.textContent = playing ? "❚❚" : "▶";
     if (eq) eq.classList.toggle("paused", !playing);
+    var cd = document.getElementById("cd-btn");
+    if (cd) cd.classList.toggle("playing", playing);
   }
 
   function updateProgress() {
@@ -250,11 +252,29 @@
   var statusEl = document.getElementById("tts-status");
   function setStatus(t) { if (statusEl) statusEl.textContent = t; }
 
+  var panel = document.getElementById("tts-panel");
+  var cdBtn = document.getElementById("cd-btn");
+  var moreMenu = document.getElementById("more-menu");
+
+  function openPanel() {
+    if (panel) panel.classList.add("open");
+    if (cdBtn) cdBtn.style.display = "none";
+  }
+  function closePanel() {
+    if (panel) panel.classList.remove("open");
+    if (cdBtn) cdBtn.style.display = "";
+    if (moreMenu) moreMenu.classList.remove("open");
+  }
+  function toggleMore(e) {
+    if (e) e.stopPropagation();
+    if (moreMenu) moreMenu.classList.toggle("open");
+  }
+
   function updateVoiceTip() {
     var el = document.getElementById("voice-tip");
     if (!el) return;
     el.textContent = voice
-      ? "当前语音：" + voice.name + "（点「声音」可切换；更多语音在 iPhone 设置→辅助功能→朗读内容→语音下载）"
+      ? "当前语音：" + voice.name + "（可在「⋯」菜单里切换；Siri 声音仅限 Siri 使用）"
       : "使用系统默认中文语音";
   }
 
@@ -315,6 +335,12 @@
   });
   bind("btn-voice", nextVoice);
   bind("btn-done", markDone);
+  bind("cd-btn", openPanel);
+  bind("btn-collapse", closePanel);
+  bind("btn-more", toggleMore);
+  document.addEventListener("click", function () {
+    if (moreMenu) moreMenu.classList.remove("open");
+  });
   setPlayIcon();
   updateProgress();
   updateVoiceBtn();

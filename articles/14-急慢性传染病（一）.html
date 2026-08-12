@@ -20,7 +20,8 @@
 登革热：埃及伊蚊/白纹伊蚊传播。</div></div><div style="background-color:#e8f7ee;border-left:4px solid #16a34a;border-radius:8px;padding:14px 16px;margin:16px 0;"><div style="font-size:15px;font-weight:700;color:#15803d;margin-bottom:6px;">记忆锦囊 · 消毒灭菌关键词</div><div style="font-size:15px;line-height:1.9;color:#14532d;white-space:pre-wrap;">高压蒸汽灭菌（121℃，20 分钟）是最常用可靠的灭菌法；
 煮沸 100℃ 5 分钟可杀灭细菌繁殖体；
 医院感染：在医疗机构内获得的感染，病原体多为条件致病菌/耐药菌，治疗棘手，特点见本篇对比表。</div></div></div></article><div class="page-nav"><a class="prev" href="13-卫生信息管理与应用.html"><span class="dir">← 上一篇</span>卫生信息管理与应用</a><a class="next" href="15-急慢性传染病（二）.html"><span class="dir">下一篇 →</span>急慢性传染病（二）</a></div><div id="reading-state" class="state na" style="text-align:center;font-size:13px;"></div></main>
-<div class="tts-bar">
+<button class="cd-btn" id="cd-btn" aria-label="播放器"><span>361</span></button>
+<div class="tts-bar" id="tts-panel">
   <div class="tts-inner">
     <div class="tts-meta">
       <span class="eq paused" id="tts-eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
@@ -28,17 +29,21 @@
       <span class="prog" id="tts-prog"></span>
     </div>
     <div class="tts-controls">
-      <button class="btn-round" id="btn-prev" title="上一句">⏮</button>
-      <button class="btn-circle" id="btn-play" title="播放/暂停">▶</button>
-      <button class="btn-round" id="btn-next" title="下一句">⏭</button>
-    </div>
-    <div class="tts-minis">
       <button class="btn-mini" id="btn-toc">☰ 目录</button>
-      <button class="btn-mini" id="btn-stop">⏹ 停止</button>
+      <button class="btn-circle" id="btn-play" title="播放/暂停">▶</button>
       <button class="btn-mini" id="btn-rate">倍速 1×</button>
       <button class="btn-mini" id="btn-done">标记已读</button>
-      <button class="btn-mini" id="btn-voice">声音：默认</button>
-      <button class="btn-mini" id="btn-help">🍎 系统朗读</button>
+      <div class="more-wrap">
+        <button class="btn-round" id="btn-more" title="更多功能">⋯</button>
+        <div class="more-menu" id="more-menu">
+          <button class="btn-mini" id="btn-stop">⏹ 停止</button>
+          <button class="btn-mini" id="btn-prev">◀ 上一句</button>
+          <button class="btn-mini" id="btn-next">下一句 ▶</button>
+          <button class="btn-mini" id="btn-voice">声音：默认</button>
+          <button class="btn-mini" id="btn-help">🍎 系统朗读说明</button>
+          <button class="btn-mini" id="btn-collapse">收起面板</button>
+        </div>
+      </div>
     </div>
     <div class="tts-progress"><span id="tts-bar-fill"></span></div>
     <div class="tts-status" id="tts-status"></div>

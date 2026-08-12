@@ -8,7 +8,8 @@ A：分泌型 sIgA 主司黏膜免疫（初乳中最高）；
 E：亲细胞抗体，介导 I 型超敏反应；
 D：功能尚不清楚（“打酱油”）。
 再次应答特点：潜伏期短、IgG 为主、抗体高亲和、维持时间长。</div></div></div></article><div class="page-nav"><a class="prev" disabled><span class="dir">← 上一篇</span>这是第一篇</a><a class="next" href="02-医学免疫（二）.html"><span class="dir">下一篇 →</span>医学免疫（二）</a></div><div id="reading-state" class="state na" style="text-align:center;font-size:13px;"></div></main>
-<div class="tts-bar">
+<button class="cd-btn" id="cd-btn" aria-label="播放器"><span>361</span></button>
+<div class="tts-bar" id="tts-panel">
   <div class="tts-inner">
     <div class="tts-meta">
       <span class="eq paused" id="tts-eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
@@ -16,17 +17,21 @@ D：功能尚不清楚（“打酱油”）。
       <span class="prog" id="tts-prog"></span>
     </div>
     <div class="tts-controls">
-      <button class="btn-round" id="btn-prev" title="上一句">⏮</button>
-      <button class="btn-circle" id="btn-play" title="播放/暂停">▶</button>
-      <button class="btn-round" id="btn-next" title="下一句">⏭</button>
-    </div>
-    <div class="tts-minis">
       <button class="btn-mini" id="btn-toc">☰ 目录</button>
-      <button class="btn-mini" id="btn-stop">⏹ 停止</button>
+      <button class="btn-circle" id="btn-play" title="播放/暂停">▶</button>
       <button class="btn-mini" id="btn-rate">倍速 1×</button>
       <button class="btn-mini" id="btn-done">标记已读</button>
-      <button class="btn-mini" id="btn-voice">声音：默认</button>
-      <button class="btn-mini" id="btn-help">🍎 系统朗读</button>
+      <div class="more-wrap">
+        <button class="btn-round" id="btn-more" title="更多功能">⋯</button>
+        <div class="more-menu" id="more-menu">
+          <button class="btn-mini" id="btn-stop">⏹ 停止</button>
+          <button class="btn-mini" id="btn-prev">◀ 上一句</button>
+          <button class="btn-mini" id="btn-next">下一句 ▶</button>
+          <button class="btn-mini" id="btn-voice">声音：默认</button>
+          <button class="btn-mini" id="btn-help">🍎 系统朗读说明</button>
+          <button class="btn-mini" id="btn-collapse">收起面板</button>
+        </div>
+      </div>
     </div>
     <div class="tts-progress"><span id="tts-bar-fill"></span></div>
     <div class="tts-status" id="tts-status"></div>

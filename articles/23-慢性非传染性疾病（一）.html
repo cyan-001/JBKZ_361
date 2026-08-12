@@ -2,7 +2,8 @@
 三级预防：一级＝病因预防（健康促进、疫苗接种）；二级＝早发现早诊断早治疗（筛检、健康体检）；三级＝康复与减少伤残。</div></div><div style="background-color:#e8f7ee;border-left:4px solid #16a34a;border-radius:8px;padding:14px 16px;margin:16px 0;"><div style="font-size:15px;font-weight:700;color:#15803d;margin-bottom:6px;">记忆锦囊 · 伤害预防 5E 与主动/被动干预</div><div style="font-size:15px;line-height:1.9;color:#14532d;white-space:pre-wrap;">5E 策略：工程（Engineering）、调整环境（Environment）、强制措施（Enforcement）、教育（Education）、评估（Evaluation）。
 被动干预＝不需个体行动（安全气囊自动展开）；主动干预＝需个体配合（系安全带）。
 记忆：气囊“被动”保护你，安全带要“主动”系。</div></div></div></article><div class="page-nav"><a class="prev" href="22-地方病.html"><span class="dir">← 上一篇</span>地方病</a><a class="next" href="24-慢性非传染性疾病（二）.html"><span class="dir">下一篇 →</span>慢性非传染性疾病（二）</a></div><div id="reading-state" class="state na" style="text-align:center;font-size:13px;"></div></main>
-<div class="tts-bar">
+<button class="cd-btn" id="cd-btn" aria-label="播放器"><span>361</span></button>
+<div class="tts-bar" id="tts-panel">
   <div class="tts-inner">
     <div class="tts-meta">
       <span class="eq paused" id="tts-eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
@@ -10,17 +11,21 @@
       <span class="prog" id="tts-prog"></span>
     </div>
     <div class="tts-controls">
-      <button class="btn-round" id="btn-prev" title="上一句">⏮</button>
-      <button class="btn-circle" id="btn-play" title="播放/暂停">▶</button>
-      <button class="btn-round" id="btn-next" title="下一句">⏭</button>
-    </div>
-    <div class="tts-minis">
       <button class="btn-mini" id="btn-toc">☰ 目录</button>
-      <button class="btn-mini" id="btn-stop">⏹ 停止</button>
+      <button class="btn-circle" id="btn-play" title="播放/暂停">▶</button>
       <button class="btn-mini" id="btn-rate">倍速 1×</button>
       <button class="btn-mini" id="btn-done">标记已读</button>
-      <button class="btn-mini" id="btn-voice">声音：默认</button>
-      <button class="btn-mini" id="btn-help">🍎 系统朗读</button>
+      <div class="more-wrap">
+        <button class="btn-round" id="btn-more" title="更多功能">⋯</button>
+        <div class="more-menu" id="more-menu">
+          <button class="btn-mini" id="btn-stop">⏹ 停止</button>
+          <button class="btn-mini" id="btn-prev">◀ 上一句</button>
+          <button class="btn-mini" id="btn-next">下一句 ▶</button>
+          <button class="btn-mini" id="btn-voice">声音：默认</button>
+          <button class="btn-mini" id="btn-help">🍎 系统朗读说明</button>
+          <button class="btn-mini" id="btn-collapse">收起面板</button>
+        </div>
+      </div>
     </div>
     <div class="tts-progress"><span id="tts-bar-fill"></span></div>
     <div class="tts-status" id="tts-status"></div>
