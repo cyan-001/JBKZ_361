@@ -4,6 +4,7 @@
 记忆：气囊“被动”保护你，安全带要“主动”系。</div></div></div></article><div class="page-nav"><a class="prev" href="22-地方病.html"><span class="dir">← 上一篇</span>地方病</a><a class="next" href="24-慢性非传染性疾病（二）.html"><span class="dir">下一篇 →</span>慢性非传染性疾病（二）</a></div><div id="reading-state" class="state na" style="text-align:center;font-size:13px;"></div></main>
 <button class="cd-btn" id="cd-btn" aria-label="播放器"><span>361</span></button>
 <div class="tts-bar" id="tts-panel">
+  <div class="tts-handle" id="tts-handle" title="收起播放器"></div>
   <div class="tts-inner">
     <div class="tts-meta">
       <span class="eq paused" id="tts-eq" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
@@ -11,38 +12,34 @@
       <span class="prog" id="tts-prog"></span>
     </div>
     <div class="tts-controls">
-      <button class="btn-mini" id="btn-toc">☰ 目录</button>
-      <button class="btn-circle" id="btn-play" title="播放/暂停">▶</button>
+      <button class="btn-mini" id="btn-toc"><span class="ico ico-list"></span>目录</button>
+      <button class="btn-circle" id="btn-play" title="播放/暂停">
+        <span class="ico ico-play"></span><span class="ico ico-pause"></span>
+      </button>
       <button class="btn-mini" id="btn-rate">倍速 1×</button>
       <button class="btn-mini" id="btn-done">标记已读</button>
       <div class="more-wrap">
-        <button class="btn-round" id="btn-more" title="更多功能">⋯</button>
+        <button class="btn-round" id="btn-more" title="更多功能"><span class="ico ico-dots"></span></button>
         <div class="more-menu" id="more-menu">
-          <button class="btn-mini" id="btn-stop">⏹ 停止</button>
-          <button class="btn-mini" id="btn-prev">◀ 上一句</button>
-          <button class="btn-mini" id="btn-next">下一句 ▶</button>
+          <div class="more-info" id="more-status"></div>
+          <div class="more-info" id="more-voice"></div>
+          <button class="btn-mini" id="btn-stop"><span class="ico ico-stop"></span>停止</button>
+          <button class="btn-mini" id="btn-prev"><span class="ico ico-prev"></span>上一句</button>
+          <button class="btn-mini" id="btn-next"><span class="ico ico-next"></span>下一句</button>
           <button class="btn-mini" id="btn-voice">声音：默认</button>
-          <button class="btn-mini" id="btn-help">🍎 系统朗读说明</button>
+          <button class="btn-mini" id="btn-help">系统朗读说明</button>
+          <div class="tts-help" id="tts-help">
+            <b>苹果 iPhone：</b>网页“播放”按钮用的就是 iOS 自带中文语音，效果与系统朗读一致。<br>
+            若想用系统“朗读屏幕”：设置，辅助功能，朗读内容，开启“朗读屏幕”，
+            打开本页后<b>双指从屏幕顶部下滑</b>即可整篇朗读，可后台播放。<br>
+            <b>电脑 Edge：</b>地址栏右侧“大声朗读”。<br>
+            <b>安卓 Chrome：</b>菜单 → 朗读网页（部分版本支持）。
+          </div>
           <button class="btn-mini" id="btn-collapse">收起面板</button>
         </div>
       </div>
     </div>
     <div class="tts-progress"><span id="tts-bar-fill"></span></div>
-    <div class="tts-status" id="tts-status"></div>
-    <div class="tts-status" id="voice-tip"></div>
-    <div class="tts-help" id="tts-help">
-      <b>苹果 iPhone：</b>网页“▶”按钮用的就是 iOS 自带中文语音，效果与系统朗读一致。<br>
-      若想用系统“朗读屏幕”：设置，辅助功能，朗读内容，开启“朗读屏幕”，
-      打开本页后<b>双指从屏幕顶部下滑</b>即可整篇朗读，可后台播放。<br>
-      <b>电脑 Edge：</b>地址栏右侧“大声朗读”。<br>
-      <b>安卓 Chrome：</b>菜单 → 朗读网页（部分版本支持）。
-    </div>
-    <div class="tts-fallback" id="tts-fallback" style="display:none;">
-      当前浏览器不支持网页朗读，可用系统自带朗读：<br>
-      · 电脑 Edge：地址栏右侧“大声朗读”；<br>
-      · 苹果手机：设置→辅助功能→朗读内容→朗读屏幕（双指从屏幕顶部下滑）；<br>
-      · 安卓 Chrome：菜单→朗读网页（部分版本）。
-    </div>
   </div>
 </div>
 <div class="sheet-overlay" id="sheet-overlay"></div>
@@ -53,8 +50,8 @@
     <button class="sheet-close" id="sheet-close" title="关闭">✕</button>
   </div>
   <div class="sheet-tabs">
-    <button class="sheet-tab active" data-tab="toc">📖 本文目录</button>
-    <button class="sheet-tab" data-tab="series">🗂 全系列导航</button>
+    <button class="sheet-tab active" data-tab="toc">本文目录</button>
+    <button class="sheet-tab" data-tab="series">全系列导航</button>
   </div>
   <div class="sheet-body">
     <div class="sheet-pane active" id="pane-toc"><div class="toc-empty">正在生成目录…</div></div>

@@ -47,7 +47,7 @@ body {
 /* ---------- TTS player (glassmorphism, Apple Music style) ---------- */
 .tts-bar {
   position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
-  width: min(calc(100% - 24px), 620px);
+  width: min(calc(100% - 32px), 440px);
   background: rgba(255,255,255,.62);
   -webkit-backdrop-filter: blur(24px) saturate(1.6);
   backdrop-filter: blur(24px) saturate(1.6);
@@ -69,6 +69,11 @@ body {
   .tts-bar { background: rgba(255,255,255,.97); }
 }
 .tts-inner { padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
+.tts-handle {
+  width: 42px; height: 5px; border-radius: 3px; margin: 10px auto 0;
+  background: rgba(10,61,56,.24); cursor: pointer; flex: none;
+}
+.tts-handle:active { background: rgba(10,61,56,.4); }
 .tts-meta { display: flex; align-items: center; gap: 8px; font-size: 12px; }
 .tts-meta .song { flex: 1; font-weight: 700; color: #111827; overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap; }
@@ -91,14 +96,16 @@ body {
   font-size: 22px; display: flex; align-items: center; justify-content: center;
   box-shadow: 0 8px 22px rgba(14,95,87,.38), inset 0 1px 0 rgba(255,255,255,.25);
   cursor: pointer; font-family: inherit; line-height: 1;
+  transition: transform .15s ease, box-shadow .15s ease;
 }
-.btn-circle:active { transform: scale(.94); }
+.btn-circle:active { transform: scale(.9); box-shadow: 0 4px 12px rgba(14,95,87,.3); }
 .btn-round {
   width: 40px; height: 40px; border-radius: 50%; border: none;
   background: rgba(14,95,87,.09); color: var(--teal); font-size: 15px;
   display: flex; align-items: center; justify-content: center; cursor: pointer;
   font-family: inherit;
 }
+.btn-round:active { transform: scale(.9); }
 .btn-round:active { transform: scale(.92); }
 .tts-minis { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .btn-mini {
@@ -158,6 +165,51 @@ body {
 }
 .more-menu.open { display: block; }
 .more-menu .btn-mini { display: block; width: 100%; text-align: left; margin: 2px 0; }
+.more-info { font-size: 12px; color: #6b7280; line-height: 1.7; padding: 2px 8px 6px; }
+.more-menu .tts-help { font-size: 12px; color: #14532d; background: rgba(232,247,238,.9);
+  border: 1px solid #cfe8d9; border-radius: 10px; padding: 8px 10px; margin: 6px 4px;
+  line-height: 1.8; display: none; }
+
+/* ---------- 纯 CSS 图标 ---------- */
+.ico { display: inline-block; vertical-align: middle; flex: none; }
+.btn-mini .ico, .btn-round .ico { margin-right: 6px; }
+.btn-round .ico { margin-right: 0; }
+.ico-play {
+  width: 0; height: 0;
+  border-left: 12px solid #ffffff;
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+  margin-left: 3px;
+}
+.ico-pause {
+  width: 5px; height: 16px; background: #ffffff;
+  box-shadow: 7px 0 0 #ffffff;
+  display: none;
+}
+.btn-circle.playing .ico-play { display: none; }
+.btn-circle.playing .ico-pause { display: inline-block; }
+.btn-circle .ico { transition: transform .18s ease, opacity .18s ease; }
+.btn-circle:active .ico-play { transform: scale(.82); }
+.btn-circle:active .ico-pause { transform: scale(.82); }
+.ico-prev, .ico-next {
+  width: 8px; height: 8px;
+  border-left: 2px solid #0e5f57;
+  border-bottom: 2px solid #0e5f57;
+}
+.ico-prev { transform: rotate(45deg); }
+.ico-next { transform: rotate(-135deg); }
+.ico-stop {
+  width: 11px; height: 11px; border-radius: 2px;
+  background: #0e5f57;
+}
+.ico-list {
+  width: 14px; height: 2px; border-radius: 1px; background: #0e5f57;
+  box-shadow: 0 -5px 0 #0e5f57, 0 5px 0 #0e5f57;
+}
+.ico-dots {
+  width: 5px; height: 5px; border-radius: 50%; background: #0e5f57;
+  box-shadow: -8px 0 0 #0e5f57, 8px 0 0 #0e5f57;
+}
 
 /* ---------- TOC / navigation bottom sheet ---------- */
 .sheet-overlay {

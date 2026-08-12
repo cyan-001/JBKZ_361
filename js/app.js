@@ -96,7 +96,9 @@
 
   /* ---------- 语音 ---------- */
   function pickVoice() {
-    var vs = window.speechSynthesis.getVoices();
+    var vs = zhVoices();
+    var pref = preferredVoice();
+    if (pref) return pref;
     return vs.filter(function (v) { return /zh[-_](CN|Hans)/i.test(v.lang + " " + v.name); })[0]
       || vs.filter(function (v) { return /^zh/i.test(v.lang); })[0]
       || null;
@@ -113,6 +115,31 @@
       updateVoiceTip();
       updateVoiceBtn();
     };
+  }
+
+  var VOICE_KEY = "wx361-voice-v1";
+  function savedVoiceName() {
+    try { return localStorage.getItem(VOICE_KEY); } catch (e) { return null; }
+  }
+  function saveVoiceName(n) {
+    try { localStorage.setItem(VOICE_KEY, n); } catch (e) {}
+  }
+  function preferredVoice() {
+    var vs = zhVoices();
+    if (!vs.length) return null;
+    var saved = savedVoiceName();
+    if (saved) {
+      var v = vs.filter(function (x) { return x.name === saved; })[0];
+      if (v) return v;
+    }
+    // 优先李牧（优化音质），其次常见中文语音
+    var names = ["李牧", "李穆", "李沐", "limu", "li mu", "婷婷", "小美", "优优", "彬彬"];
+    for (var i = 0; i < names.length; i++) {
+      var re = new RegExp(names[i], "i");
+      var hit = vs.filter(function (x) { return re.test(x.name); })[0];
+      if (hit) return hit;
+    }
+    return null;
   }
 
   function speakIndex(i) {
@@ -234,7 +261,7 @@
   function setPlayIcon() {
     var el = document.getElementById("btn-play");
     var eq = document.getElementById("tts-eq");
-    if (el) el.textContent = playing ? "❚❚" : "▶";
+    if (el) el.classList.toggle("playing", playing);
     if (eq) eq.classList.toggle("paused", !playing);
     var cd = document.getElementById("cd-btn");
     if (cd) cd.classList.toggle("playing", playing);
@@ -249,7 +276,7 @@
     if (prog) prog.textContent = sentences.length ? "第 " + (current + 1) + " / " + sentences.length + " 句" : "";
   }
 
-  var statusEl = document.getElementById("tts-status");
+  var statusEl = document.getElementById("more-status");
   function setStatus(t) { if (statusEl) statusEl.textContent = t; }
 
   var panel = document.getElementById("tts-panel");
@@ -271,10 +298,10 @@
   }
 
   function updateVoiceTip() {
-    var el = document.getElementById("voice-tip");
+    var el = document.getElementById("more-voice");
     if (!el) return;
     el.textContent = voice
-      ? "当前语音：" + voice.name + "（可在「⋯」菜单里切换；Siri 声音仅限 Siri 使用）"
+      ? "当前语音：" + voice.name
       : "使用系统默认中文语音";
   }
 
@@ -291,6 +318,7 @@
     if (!vs.length) { setStatus("没有可切换的中文语音，请先到 iPhone 设置里下载"); return; }
     var idx = voice ? vs.indexOf(voice) : -1;
     voice = vs[(idx + 1) % vs.length];
+    saveVoiceName(voice.name);
     updateVoiceTip();
     updateVoiceBtn();
     if (playing || paused) {
@@ -305,11 +333,7 @@
   }
 
   function showFallback() {
-    var box = document.getElementById("tts-fallback");
-    if (box) {
-      box.style.display = "block";
-      setStatus("");
-    }
+    setStatus("当前浏览器不支持网页朗读，可用系统朗读（设置→辅助功能→朗读内容→朗读屏幕）");
   }
 
   /* ---------- 按钮绑定 ---------- */
@@ -322,7 +346,8 @@
   bind("btn-stop", stop);
   bind("btn-prev", prevSentence);
   bind("btn-next", nextSentence);
-  bind("btn-help", function () {
+  bind("btn-help", function (e) {
+    e.stopPropagation();
     var el = document.getElementById("tts-help");
     if (el) el.style.display = el.style.display === "block" ? "none" : "block";
   });
@@ -333,9 +358,10 @@
     var el = document.getElementById("btn-rate");
     if (el) el.textContent = "倍速 " + rate.toFixed(2).replace(/0$/, "") + "×";
   });
-  bind("btn-voice", nextVoice);
+  bind("btn-voice", function (e) { e.stopPropagation(); nextVoice(); });
   bind("btn-done", markDone);
   bind("cd-btn", openPanel);
+  bind("tts-handle", closePanel);
   bind("btn-collapse", closePanel);
   bind("btn-more", toggleMore);
   document.addEventListener("click", function () {
