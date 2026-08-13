@@ -210,7 +210,7 @@
       var v = localStorage.getItem(ENGINE_KEY);
       if (v === "api" || v === "local" || v === "pack") return v;
     } catch (e) {}
-    return "api"; // 默认使用新接入的云端“调用朗读”
+    return "pack"; // 默认使用语音包（预生成音频）
   }
   function saveEngine(v) { try { localStorage.setItem(ENGINE_KEY, v); } catch (e) {} }
   function loadApiVoiceIdx() {
@@ -223,29 +223,23 @@
   function saveApiVoiceIdx(n) { try { localStorage.setItem(APIVOICE_KEY, String(n)); } catch (e) {} }
 
   function updateEngineBtn() {
-    var el = document.getElementById("btn-engine");
-    if (!el) return;
-    el.textContent = engine === "api" ? "调用朗读" : engine === "local" ? "本地朗读" : "语音包";
-    el.classList.toggle("active", engine === "api");
-    el.title = engine === "api"
-      ? "当前：调用朗读（云端神经音色，需网络）"
-      : engine === "local"
-        ? "当前：本地朗读（系统语音，无需网络）"
-        : "当前：语音包朗读（预生成音频，晓涵，离线可用）";
+    ["btn-engine-pack", "btn-engine-local"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      var on = (id === "btn-engine-pack" && engine === "pack") || (id === "btn-engine-local" && engine === "local");
+      el.classList.toggle("active", on);
+    });
   }
 
-  function toggleEngine() {
-    var order = ["api", "local", "pack"];
-    var idx = order.indexOf(engine);
-    var next = order[(idx + 1) % order.length];
+  function setEngine(next) {
     if (next === "local" && !SUPPORTED) {
-      setStatus("当前浏览器不支持本地朗读，仍使用调用朗读");
+      setStatus("当前浏览器不支持本地朗读");
       return;
     }
     if (next === "pack") {
       loadPackManifest(function (man) {
         if (!man || !man.articles || !Object.keys(man.articles).length) {
-          setStatus("语音包未生成：请先在 _work 里运行 gen_audio.py 并上传音频");
+          setStatus("语音包未生成：请先运行 _work/gen_audio.py 并上传音频");
           return;
         }
         engine = "pack";
@@ -782,9 +776,9 @@
     if (!playing) return;
     var keep = current >= 0 ? current : 0;
     if (engine !== "pack") return;
-    setStatus("语音包不可用，已切换到调用朗读");
-    engine = "api";
-    saveEngine("api");
+    setStatus("语音包不可用，已切换到本地朗读");
+    engine = "local";
+    saveEngine("local");
     stop();
     updateEngineBtn();
     updateVoiceTip();
@@ -984,16 +978,35 @@
     if (panel) panel.classList.add("open");
     if (mini) mini.classList.add("hidden");
     if (moreMenu) moreMenu.classList.remove("open");
+    armIdleCollapse();
   }
   function collapseToMini() {
     if (panel) panel.classList.remove("open");
     if (mini) mini.classList.remove("hidden");
     if (moreMenu) moreMenu.classList.remove("open");
+    disarmIdleCollapse();
   }
   function toggleMore(e) {
     if (e) e.stopPropagation();
     if (moreMenu) moreMenu.classList.toggle("open");
   }
+
+  /* 展开面板后 10 秒无操作，自动收成迷你条 */
+  var idleTimer = null;
+  function armIdleCollapse() {
+    disarmIdleCollapse();
+    idleTimer = setTimeout(function () {
+      collapseToMini();
+    }, 10000);
+  }
+  function disarmIdleCollapse() {
+    if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
+  }
+  ["pointerdown", "keydown", "wheel", "touchstart"].forEach(function (ev) {
+    document.addEventListener(ev, function () {
+      if (panel && panel.classList.contains("open")) armIdleCollapse();
+    }, { passive: true });
+  });
 
   function updateVoiceTip() {
     var el = document.getElementById("more-voice");
@@ -1114,7 +1127,8 @@
   bind("btn-stop", stop);
   bind("btn-prev", prevSentence);
   bind("btn-next", nextSentence);
-  bind("btn-engine", toggleEngine);
+  bind("btn-engine-pack", function () { setEngine("pack"); });
+  bind("btn-engine-local", function () { setEngine("local"); });
   bind("btn-help", function (e) {
     e.stopPropagation();
     var el = document.getElementById("tts-help");
