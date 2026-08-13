@@ -376,12 +376,6 @@ body {
 .rate-menu.open { display: flex; }
 .rate-menu .rate-item { width: 100%; text-align: center; }
 .rate-menu .rate-item.active { background: var(--teal); color: #fff; }
-.vol-menu { align-items: center; gap: 8px; min-width: 170px; padding: 10px 12px; }
-.vol-menu.open { display: flex; }
-.vol-menu { flex-wrap: wrap; }
-.vol-menu .vol-hint { flex-basis: 100%; font-size: 11px; color: #94a3b8; line-height: 1.6; }
-.vol-menu input[type="range"] { flex: 1; accent-color: var(--teal); cursor: pointer; }
-.vol-menu .vol-label { font-size: 12.5px; color: #475569; min-width: 40px; text-align: right; }
 
 /* ---------- 左侧阅读标尺（细长贯穿全文，颜色由浅到深） ---------- */
 #read-rail {
