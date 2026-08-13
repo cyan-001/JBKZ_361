@@ -395,7 +395,7 @@
 
   /* ---------- 语音：调用引擎（云端 Worker，edge-tts 神经音色） ---------- */
   var apiAudio = null;
-  var apiState = null;       // {i, piece, pieces, baseNS, mode, stream, blobUrl, streamRetried}
+  var apiState = null;       // {i, piece, pieces, baseNS, blobUrl}
   var apiTimes = {};         // "i:baseNS" -> [{startNS, times}]
   var fallbackBusy = false;
 
@@ -408,15 +408,7 @@
     apiAudio.addEventListener("timeupdate", syncApiChars);
     apiAudio.addEventListener("ended", apiPieceEnded);
     apiAudio.addEventListener("error", function () {
-      if (!playing || !apiState) return;
-      if (apiState.mode === "stream" && !apiState.streamRetried) {
-        apiState.streamRetried = true;
-        abortMseStream();
-        setStatus("调用朗读：流式解码失败，改用缓冲模式…");
-        fallbackBlobPiece(apiState.i, apiState.piece);
-      } else {
-        handleApiError(new Error("音频解码失败"));
-      }
+      if (playing && apiState) handleApiError();
     });
     return apiAudio;
   }
@@ -487,144 +479,23 @@
     for (var k = 0; k < pieces.length; k++) {
       if (pieces[k].startNS + pieces[k].nsLen > baseNS) { st = k; break; }
     }
-    apiState = { i: i, piece: st, pieces: pieces, baseNS: baseNS, mode: "stream", stream: null, blobUrl: null, streamRetried: false };
+    apiState = { i: i, piece: st, pieces: pieces, baseNS: baseNS, blobUrl: null };
     buildApiTimes(i, baseNS);
     playApiPiece(i, st);
     setStatus("调用朗读：正在连接合成服务…");
   }
 
-  // 请求一段文字并播放：优先 MediaSource 流式，其次 Blob 缓冲
+  // 请求一段文字，转成 Blob URL 后交给 <audio> 播放
   function playApiPiece(i, pieceIdx) {
     var st = apiState;
     if (!st || st.i !== i || !playing) return;
     var seg = st.pieces[pieceIdx];
     var text = cleanForSpeech(seg.text);
     if (!text) { advanceAfterSilence(); return; }
-    setStatus("调用朗读：正在连接合成服务…");
-    fetchApiAudio(text).then(function (resp) {
-      if (!playing || !apiState || apiState.i !== i) return;
-      if (resp.body && resp.body.getReader && window.MediaSource) {
-        startMsePiece(i, pieceIdx, resp.body);
-      } else {
-        startBlobPiece(i, pieceIdx, resp);
-      }
-    }).catch(function () { handleApiError(); });
-  }
-
-  // ---- MediaSource 流式播放 ----
-  function startMsePiece(i, pieceIdx, body) {
-    var st = apiState;
-    if (!st || st.i !== i || !playing) return;
-    abortMseStream();
-    var ms;
-    try { ms = new MediaSource(); } catch (e) { fallbackBlobPiece(i, pieceIdx); return; }
-    var seg = st.pieces[pieceIdx];
-    var stream = {
-      ms: ms, url: "", sb: null, reader: null,
-      queue: [], processing: false, readerDone: false,
-      ended: false, aborted: false, mime: "",
-      estDur: Math.max(1.2, (seg.nsLen || 0) * CHAR_MS / rate / 1000)
-    };
-    st.mode = "stream";
-    st.stream = stream;
-    stream.url = URL.createObjectURL(ms);
-    apiAudio.src = stream.url;
-    apiAudio.currentTime = 0;
-    var pt = buildApiTimes(i, st.baseNS)[pieceIdx];
-    if (pt) markChars(i, pt.startNS);
-    setStatus("调用朗读：正在缓冲（流式）…");
-
-    ms.addEventListener("sourceopen", function () {
-      if (!st.stream || st.stream.aborted || st.i !== i) return;
-      // 依次尝试 MP3 / MP4-AAC / MP3-in-MP4，兼容不同浏览器
-      var mimes = ["audio/mpeg", 'audio/mp4; codecs="mp4a.40.2"', 'audio/mp4; codecs="mp3"'];
-      var sb = null;
-      for (var k = 0; k < mimes.length; k++) {
-        try { sb = ms.addSourceBuffer(mimes[k]); stream.mime = mimes[k]; break; } catch (e) {}
-      }
-      if (!sb) { fallbackBlobPiece(i, pieceIdx); return; }
-      stream.sb = sb;
-      sb.addEventListener("updateend", function () {
-        if (stream.aborted) return;
-        stream.processing = false;
-        pumpMseQueue(stream);
-        maybeEndStream(stream);
-        if (playing && apiAudio.paused) tryPlayApi();
-      });
-      stream.reader = body.getReader();
-      readMseLoop(i, pieceIdx, stream);
-    });
-    tryPlayApi();
-  }
-
-  function readMseLoop(i, pieceIdx, stream) {
-    var self = stream;
-    var reader = stream.reader;
-    (async function () {
-      try {
-        while (!self.aborted) {
-          var r = await reader.read();
-          if (self.aborted) { try { reader.cancel(); } catch (e) {} return; }
-          if (r.done) {
-            self.readerDone = true;
-            maybeEndStream(self);
-            return;
-          }
-          if (self.queue.length >= 64) await new Promise(function (res) { setTimeout(res, 20); });
-          self.queue.push(r.value);
-          pumpMseQueue(self);
-        }
-      } catch (e) {
-        if (!self.aborted) handleApiError();
-      }
-    })();
-  }
-
-  function pumpMseQueue(stream) {
-    if (!stream || stream.aborted || !stream.sb || stream.processing) return;
-    if (!stream.queue.length) return;
-    stream.processing = true;
-    var chunk = stream.queue.shift();
-    try {
-      stream.sb.appendBuffer(chunk);
-    } catch (e) {
-      stream.processing = false;
-      if (!stream.aborted) handleApiError();
-    }
-  }
-
-  function maybeEndStream(stream) {
-    if (!stream || stream.aborted || stream.ended || !stream.readerDone) return;
-    if (stream.queue.length > 0 || stream.processing) return;
-    try {
-      if (stream.ms && stream.ms.readyState === "open") stream.ms.endOfStream();
-    } catch (e) {}
-    stream.ended = true;
-    if (apiState && playing) {
-      setStatus("调用朗读：正在播放 第 " + (apiState.i + 1) + " / " + sentences.length + " 句");
-    }
-  }
-
-  function abortMseStream() {
-    var st = apiState;
-    if (!st || !st.stream) return;
-    var stream = st.stream;
-    stream.aborted = true;
-    if (stream.reader) { try { stream.reader.cancel(); } catch (e) {} }
-    if (stream.sb && stream.sb.updating) { try { stream.sb.abort(); } catch (e) {} }
-    try { if (stream.ms && stream.ms.readyState !== "closed") stream.ms.endOfStream(); } catch (e) {}
-    if (stream.url) { try { URL.revokeObjectURL(stream.url); } catch (e) {} }
-    st.stream = null;
-  }
-
-  // ---- Blob 缓冲播放（MediaSource 不可用/解码失败时的降级） ----
-  function startBlobPiece(i, pieceIdx, resp) {
-    var st = apiState;
-    if (!st || st.i !== i || !playing) return;
-    abortMseStream();
-    st.mode = "blob";
     setStatus("调用朗读：正在缓冲…");
-    resp.blob().then(function (blob) {
+    fetchApiAudio(text).then(function (resp) {
+      return resp.blob();
+    }).then(function (blob) {
       if (!playing || !apiState || apiState.i !== i) return;
       if (st.blobUrl) { try { URL.revokeObjectURL(st.blobUrl); } catch (e) {} }
       st.blobUrl = URL.createObjectURL(blob);
@@ -638,18 +509,7 @@
     }).catch(function () { handleApiError(); });
   }
 
-  function fallbackBlobPiece(i, pieceIdx) {
-    var st = apiState;
-    if (!st || st.i !== i || !playing) return;
-    var text = cleanForSpeech(st.pieces[pieceIdx].text);
-    if (!text) { advanceAfterSilence(); return; }
-    setStatus("调用朗读：正在缓冲…");
-    fetchApiAudio(text).then(function (resp) {
-      startBlobPiece(i, pieceIdx, resp);
-    }).catch(function () { handleApiError(); });
-  }
-
-  // 请求体固定开启 stream:true，让 Worker 流式返回
+  // 请求体按新 Worker 实测参数发送：stream + response_format 均为 mp3
   function fetchApiAudio(text) {
     if (typeof fetch !== "function") return Promise.reject(new Error("当前浏览器不支持网络请求"));
     var headers = { "Content-Type": "application/json" };
@@ -658,12 +518,13 @@
       method: "POST",
       headers: headers,
       body: JSON.stringify({
-        model: "tts-1",
         input: text,
         voice: API_VOICES[apiVoiceIdx].id,
         speed: rate,
         pitch: 1.0,
-        "stream": true   // 开启流式播放
+        style: "general",
+        "stream": true,
+        "response_format": "mp3"
       })
     }).then(function (resp) {
       if (!resp.ok) {
@@ -675,12 +536,6 @@
     });
   }
 
-  function tryPlayApi() {
-    if (!apiAudio) return;
-    var p = apiAudio.play();
-    if (p && p.catch) p.catch(function () {});
-  }
-
   function syncApiChars() {
     var st = apiState;
     if (!st || !apiAudio) return;
@@ -688,11 +543,10 @@
     var frac;
     if (isFinite(dur) && dur > 0) {
       frac = apiAudio.currentTime / dur;
-    } else if (st.stream && st.stream.estDur > 0) {
-      // 流式播放中总时长未知，先用估算时长同步逐字高亮
-      frac = apiAudio.currentTime / st.stream.estDur;
     } else {
-      return;
+      var seg = st.pieces[st.piece];
+      var estDur = Math.max(1.2, (seg && seg.nsLen || 0) * CHAR_MS / rate / 1000);
+      frac = apiAudio.currentTime / estDur;
     }
     if (frac < 0) frac = 0;
     if (frac > 1) frac = 1;
@@ -705,8 +559,7 @@
   function apiPieceEnded() {
     var st = apiState;
     if (!st || !playing) return;
-    abortMseStream();
-    if (st.blobUrl) { try { URL.revokeObjectURL(st.blobUrl); } catch (e) {} st.blobUrl = null; }
+    abortApiBlob();
     if (st.piece + 1 < st.pieces.length) {
       st.piece++;
       playApiPiece(st.i, st.piece);
@@ -716,9 +569,15 @@
     advanceNext(st.i);
   }
 
+  function abortApiBlob() {
+    var st = apiState;
+    if (!st || !st.blobUrl) return;
+    try { URL.revokeObjectURL(st.blobUrl); } catch (e) {}
+    st.blobUrl = null;
+  }
+
   function handleApiError() {
     if (!playing || !apiState) return;
-    abortMseStream();
     apiFail();
   }
 
@@ -851,11 +710,7 @@
     if (SUPPORTED) { try { window.speechSynthesis.cancel(); } catch (e) {} }
     if (apiAudio) {
       apiAudio.pause();
-      abortMseStream();
-      if (apiState && apiState.blobUrl) {
-        try { URL.revokeObjectURL(apiState.blobUrl); } catch (e) {}
-        apiState.blobUrl = null;
-      }
+      abortApiBlob();
       try { apiAudio.removeAttribute("src"); apiAudio.load(); } catch (e) {}
     }
     apiState = null;
