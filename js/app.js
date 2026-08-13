@@ -16,6 +16,12 @@
    * ============================================================ */
   var WORKER_URL = "https://edge-tts-stream813.screenbks-89d.workers.dev/v1/audio/speech";
   var WORKER_API_KEY = ""; // 若 Worker 部署时设置了 API_KEY，请填在这里；未设置则留空
+  /* 语音包朗读：预生成音频索引与存放位置
+   * - audio_manifest.json 由 _work/gen_audio.py 生成，放在网站根目录
+   * - 音频文件上传到阿里云 OSS（my-voice-bucket-2026）后，PACK_AUDIO_BASE 用下面的地址；
+   *   若把音频直接复制到网站目录，则改为 ""（相对路径） */
+  var PACK_MANIFEST_URL = /\/articles\//.test(location.pathname) ? "../audio_manifest.json" : "audio_manifest.json";
+  var PACK_AUDIO_BASE = "https://my-voice-bucket-2026.oss-cn-chengdu.aliyuncs.com/";
   var API_VOICES = [
     { id: "zh-CN-XiaohanNeural",  name: "晓涵（优雅女声）" },
     { id: "zh-CN-XiaoxiaoNeural", name: "晓晓（温柔女声）" },
@@ -36,9 +42,10 @@
   var paused = false;
   var rate = 1;
   var voice = null;                // 本地引擎语音
-  var engine = loadEngine();       // "api" | "local"
+  var engine = loadEngine();       // "api" | "local" | "pack"
   var apiVoiceIdx = loadApiVoiceIdx();
   var articleId = document.body.getAttribute("data-article");
+  var pack = { manifest: null, state: "idle", offsets: null, segs: null, segIdx: -1, lastDoneSent: -1 }; // 语音包
 
   /* ---------- 进度条 ---------- */
   var bar = document.getElementById("progress-bar");
@@ -201,7 +208,7 @@
   function loadEngine() {
     try {
       var v = localStorage.getItem(ENGINE_KEY);
-      if (v === "api" || v === "local") return v;
+      if (v === "api" || v === "local" || v === "pack") return v;
     } catch (e) {}
     return "api"; // 默认使用新接入的云端“调用朗读”
   }
@@ -218,21 +225,41 @@
   function updateEngineBtn() {
     var el = document.getElementById("btn-engine");
     if (!el) return;
-    el.textContent = engine === "api" ? "调用朗读" : "本地朗读";
+    el.textContent = engine === "api" ? "调用朗读" : engine === "local" ? "本地朗读" : "语音包";
     el.classList.toggle("active", engine === "api");
     el.title = engine === "api"
       ? "当前：调用朗读（云端神经音色，需网络）"
-      : "当前：本地朗读（系统语音，无需网络）";
+      : engine === "local"
+        ? "当前：本地朗读（系统语音，无需网络）"
+        : "当前：语音包朗读（预生成音频，晓涵，离线可用）";
   }
 
   function toggleEngine() {
-    if (engine === "api") {
-      if (!SUPPORTED) { setStatus("当前浏览器不支持本地朗读，仍使用调用朗读"); return; }
-      engine = "local";
-    } else {
-      engine = "api";
+    var order = ["api", "local", "pack"];
+    var idx = order.indexOf(engine);
+    var next = order[(idx + 1) % order.length];
+    if (next === "local" && !SUPPORTED) {
+      setStatus("当前浏览器不支持本地朗读，仍使用调用朗读");
+      return;
     }
+    if (next === "pack") {
+      loadPackManifest(function (man) {
+        if (!man || !man.articles || !Object.keys(man.articles).length) {
+          setStatus("语音包未生成：请先在 _work 里运行 gen_audio.py 并上传音频");
+          return;
+        }
+        engine = "pack";
+        saveEngine(engine);
+        applyEngineChange();
+      });
+      return;
+    }
+    engine = next;
     saveEngine(engine);
+    applyEngineChange();
+  }
+
+  function applyEngineChange() {
     var wasActive = playing || paused;
     stop();
     if (wasActive && current >= 0) {
@@ -405,7 +432,9 @@
     apiAudio.id = "tts-api-audio";
     apiAudio.preload = "auto";
     document.body.appendChild(apiAudio);
-    apiAudio.addEventListener("timeupdate", syncApiChars);
+    apiAudio.addEventListener("timeupdate", function () {
+      if (engine === "pack") packSyncChars(); else syncApiChars();
+    });
     apiAudio.addEventListener("ended", apiPieceEnded);
     apiAudio.addEventListener("error", function () {
       if (playing && apiState) handleApiError();
@@ -557,6 +586,19 @@
   }
 
   function apiPieceEnded() {
+    if (engine === "pack") {
+      if (!playing || pack.segIdx < 0 || !pack.segs) return;
+      var seg = pack.segs[pack.segIdx];
+      var endSent = sentenceIndexForRaw(seg.e - 1);
+      if (endSent >= 0) markSentenceRead(endSent, true);
+      if (pack.segIdx + 1 < pack.segs.length) {
+        pack.segIdx++;
+        playPackSegmentFromStart(pack.segIdx);
+      } else {
+        finishPlay();
+      }
+      return;
+    }
     var st = apiState;
     if (!st || !playing) return;
     abortApiBlob();
@@ -578,6 +620,7 @@
 
   function handleApiError() {
     if (!playing || !apiState) return;
+    if (engine === "pack") { packFail(); return; }
     apiFail();
   }
 
@@ -609,6 +652,149 @@
     fallbackBusy = false;
   }
 
+  /* ---------- 语音包引擎（预生成音频，按 manifest 索引播放） ---------- */
+  function loadPackManifest(cb) {
+    if (pack.state === "loaded") { cb(pack.manifest); return; }
+    if (pack.state === "loading") { setTimeout(function () { loadPackManifest(cb); }, 150); return; }
+    if (pack.state === "failed") { cb(null); return; }
+    pack.state = "loading";
+    fetch(PACK_MANIFEST_URL, { cache: "no-store" }).then(function (resp) {
+      if (!resp.ok) throw new Error("manifest " + resp.status);
+      return resp.json();
+    }).then(function (man) {
+      pack.manifest = man;
+      pack.state = "loaded";
+      cb(man);
+    }).catch(function () {
+      pack.state = "failed";
+      cb(null);
+    });
+  }
+
+  // 每个句子的原始文本起始偏移（与 gen_audio.py 的坐标一致）
+  function buildPackOffsets() {
+    if (pack.offsets && pack.offsets.length === sentences.length) return pack.offsets;
+    var offs = [0];
+    for (var k = 0; k < sentences.length; k++) {
+      var len = sentences[k].el ? sentences[k].el.textContent.length : sentences[k].text.length;
+      offs.push(offs[k] + len);
+    }
+    pack.offsets = offs;
+    return offs;
+  }
+
+  function sentenceIndexForRaw(raw) {
+    var offs = buildPackOffsets();
+    var lo = 0, hi = offs.length - 1;
+    while (lo < hi) {
+      var mid = (lo + hi + 1) >> 1;
+      if (offs[mid] <= raw) lo = mid; else hi = mid - 1;
+    }
+    return lo;
+  }
+
+  function packSegIndexForRaw(raw) {
+    var segs = pack.segs || [];
+    var lo = 0, hi = segs.length - 1;
+    while (lo < hi) {
+      var mid = (lo + hi) >> 1;
+      if (segs[mid].e <= raw) lo = mid + 1; else hi = mid;
+    }
+    return lo;
+  }
+
+  function speakPack(i, charStart) {
+    ensureApiAudio();
+    apiState = { i: i, piece: -1, pieces: [], baseNS: 0, blobUrl: null, pack: true };
+    loadPackManifest(function (man) {
+      if (!playing || current !== i) return;
+      var list = man && man.articles && man.articles[articleId];
+      if (!man || !list || !list.length) {
+        setStatus("语音包未生成：请先在 _work 里运行 gen_audio.py 并上传音频");
+        packFail();
+        return;
+      }
+      pack.segs = list;
+      buildPackOffsets();
+      var s = sentences[i];
+      var nsToRaw = s.nsToRaw || [];
+      var ns = 0;
+      if (charStart > 0 && nsToRaw[charStart] != null) ns = nsToRaw[charStart];
+      var raw = (pack.offsets[i] || 0) + ns;
+      var k = packSegIndexForRaw(raw);
+      pack.segIdx = k;
+      pack.lastDoneSent = -1;
+      playPackSegment(i, k, raw);
+    });
+  }
+
+  function playPackSegment(i, k, startRaw) {
+    if (!pack.segs || k < 0 || k >= pack.segs.length) return;
+    var seg = pack.segs[k];
+    pack.segIdx = k;
+    var url = PACK_AUDIO_BASE + seg.f;
+    apiAudio.src = url;
+    apiAudio.playbackRate = rate;
+    apiAudio.currentTime = 0;
+    markPackRange(startRaw, startRaw);
+    var p = apiAudio.play();
+    if (p && p.catch) p.catch(function () {});
+    setStatus("语音包：第 " + (k + 1) + " / " + pack.segs.length + " 段");
+    updateProgress();
+  }
+
+  function playPackSegmentFromStart(k) {
+    if (!pack.segs || k < 0 || k >= pack.segs.length) return;
+    pack.segIdx = k;
+    playPackSegment(current, k, pack.segs[k].s);
+  }
+
+  // 把原始字符区间映射到句子并做已读/当前高亮（大致定位）
+  function markPackRange(fromRaw, toRaw) {
+    if (!pack.offsets) return;
+    var s0 = sentenceIndexForRaw(fromRaw);
+    var s1 = sentenceIndexForRaw(toRaw);
+    var last = pack.lastDoneSent;
+    for (var k = Math.max(s0, last + 1); k < s1; k++) markSentenceRead(k, false);
+    pack.lastDoneSent = Math.max(last, s1 - 1);
+    var s = sentences[s1];
+    if (!s) return;
+    var rawIn = toRaw - (pack.offsets[s1] || 0);
+    var r2n = s.rawToNS || [];
+    var ns = 0;
+    if (rawIn > 0 && rawIn < r2n.length) ns = r2n[rawIn];
+    else if (rawIn >= r2n.length && s.chars && s.chars.length) ns = s.chars.length - 1;
+    markChars(s1, ns);
+  }
+
+  function packSyncChars() {
+    if (pack.segIdx < 0 || !pack.segs || !apiAudio) return;
+    var seg = pack.segs[pack.segIdx];
+    var dur = apiAudio.duration;
+    var frac = (isFinite(dur) && dur > 0) ? (apiAudio.currentTime / dur) : 0;
+    if (frac < 0) frac = 0;
+    if (frac > 1) frac = 1;
+    var curRaw = seg.s + (seg.e - seg.s) * frac;
+    markPackRange(seg.s, curRaw);
+  }
+
+  function packFail() {
+    if (!playing) return;
+    var keep = current >= 0 ? current : 0;
+    if (engine !== "pack") return;
+    setStatus("语音包不可用，已切换到调用朗读");
+    engine = "api";
+    saveEngine("api");
+    stop();
+    updateEngineBtn();
+    updateVoiceTip();
+    updateVoiceBtn();
+    updateVoiceList();
+    playing = true;
+    setPlayIcon();
+    speakIndex(keep, 0);
+  }
+
   /* ---------- 统一播放控制 ---------- */
   function speakIndex(i, charStart) {
     if (i < 0 || i >= sentences.length) return;
@@ -619,6 +805,7 @@
     var text = cleanForSpeech(sentences[i].text);
     if (!text) { advanceAfterSilence(); return; }
     if (engine === "api") speakApi(i, charStart || 0);
+    else if (engine === "pack") speakPack(i, charStart || 0);
     else if (SUPPORTED) speakLocal(i, charStart || 0);
     else { showFallback(); }
   }
@@ -706,6 +893,8 @@
   function stop() {
     playing = false;
     paused = false;
+    pack.segIdx = -1;
+    pack.lastDoneSent = -1;
     stopLocalTick();
     if (SUPPORTED) { try { window.speechSynthesis.cancel(); } catch (e) {} }
     if (apiAudio) {
@@ -762,8 +951,14 @@
   }
 
   function updateProgress() {
-    var p = sentences.length ? (current + 1) / sentences.length : 0;
-    var txt = sentences.length ? "第 " + (current + 1) + " / " + sentences.length + " 句" : "";
+    var p, txt;
+    if (engine === "pack" && pack.segs && pack.segIdx >= 0) {
+      p = (pack.segIdx + 1) / pack.segs.length;
+      txt = "语音包：第 " + (pack.segIdx + 1) + " / " + pack.segs.length + " 段";
+    } else {
+      p = sentences.length ? (current + 1) / sentences.length : 0;
+      txt = sentences.length ? "第 " + (current + 1) + " / " + sentences.length + " 句" : "";
+    }
     ["tts-bar-fill", "mini-bar-fill"].forEach(function (id) {
       var bar = document.getElementById(id);
       if (bar) bar.style.width = (p * 100).toFixed(1) + "%";
@@ -805,7 +1000,9 @@
     if (!el) return;
     el.textContent = engine === "api"
       ? "当前引擎：调用朗读（云端神经音色）"
-      : "当前引擎：本地朗读（系统语音）";
+      : engine === "local"
+        ? "当前引擎：本地朗读（系统语音）"
+        : "当前引擎：语音包朗读（预生成音频，晓涵，离线可用）";
   }
 
   function updateVoiceBtn() {
@@ -815,6 +1012,8 @@
     if (engine === "api") {
       name = API_VOICES[apiVoiceIdx].name;
       el.textContent = "云端：" + (name.length > 12 ? name.slice(0, 12) + "…" : name);
+    } else if (engine === "pack") {
+      el.textContent = "语音包：晓涵（固定）";
     } else {
       name = voice ? voice.name : "系统默认";
       el.textContent = "声音：" + (name.length > 12 ? name.slice(0, 12) + "…" : name);
@@ -828,6 +1027,10 @@
       el.textContent = "云端音色：" + API_VOICES.map(function (v) { return v.name; }).join("；");
       return;
     }
+    if (engine === "pack") {
+      el.textContent = "语音包音色：晓涵（重新生成语音包才能换音色）";
+      return;
+    }
     var vs = zhVoices();
     el.textContent = vs.length
       ? "可用语音：" + vs.map(function (v) { return v.name; }).join("；")
@@ -839,6 +1042,8 @@
       apiVoiceIdx = (apiVoiceIdx + 1) % API_VOICES.length;
       saveApiVoiceIdx(apiVoiceIdx);
       setStatus("云端声音已切换到：" + API_VOICES[apiVoiceIdx].name);
+    } else if (engine === "pack") {
+      setStatus("语音包音色固定为晓涵，换音色需重新运行 gen_audio.py 生成");
     } else {
       if (!SUPPORTED) { showFallback(); return; }
       var vs = zhVoices();
@@ -860,7 +1065,7 @@
     updateVoiceTip();
     updateVoiceBtn();
     updateVoiceList();
-    if (playing || paused) restartCurrent();
+    if ((engine === "api" || engine === "local") && (playing || paused)) restartCurrent();
   }
 
   function restartCurrent() {
@@ -921,8 +1126,12 @@
     rate = rates[(idx + 1) % rates.length];
     var el = document.getElementById("btn-rate");
     if (el) el.textContent = "倍速 " + rate.toFixed(2).replace(/0$/, "") + "×";
-    if (engine === "api") resetApiCache(); // 云端需要按新语速重新合成
-    if (playing || paused) restartCurrent();
+    if (engine === "pack") {
+      if (apiAudio) apiAudio.playbackRate = rate; // 语音包直接变速，无需重新下载
+    } else {
+      if (engine === "api") resetApiCache(); // 云端需要按新语速重新合成
+      if (playing || paused) restartCurrent();
+    }
   });
   bind("btn-voice", function (e) { e.stopPropagation(); nextVoice(); });
   bind("btn-done", toggleDone);
