@@ -34,35 +34,43 @@
       <span class="prog" id="tts-prog"></span>
     </div>
     <div class="tts-controls">
-      <button class="btn-mini" id="btn-toc"><span class="ico ico-list"></span>目录</button>
-      <button class="btn-mini" id="btn-rate">倍速 1×</button>
+      <div class="tts-btns tts-btns-1">
+        <button class="btn-mini" id="btn-toc"><span class="ico ico-list"></span>目录</button>
+        <button class="btn-mini" id="btn-engine">调用朗读</button>
+        <button class="btn-mini" id="btn-rate">倍速 1×</button>
+      </div>
+      <div class="tts-btns tts-btns-2">
+        <button class="btn-mini" id="btn-done">标记已读</button>
+        <div class="more-wrap">
+          <button class="btn-mini" id="btn-more">更多功能</button>
+          <div class="more-menu" id="more-menu">
+            <div class="more-info" id="more-status"></div>
+            <div class="more-info" id="more-voice"></div>
+            <div class="more-info" id="more-voice-list"></div>
+            <button class="btn-mini" id="btn-stop"><span class="ico ico-stop"></span>停止</button>
+            <button class="btn-mini" id="btn-prev"><span class="ico ico-prev"></span>上一句</button>
+            <button class="btn-mini" id="btn-next"><span class="ico ico-next"></span>下一句</button>
+            <button class="btn-mini" id="btn-voice">声音：默认</button>
+            <button class="btn-mini" id="btn-help">系统朗读说明</button>
+            <div class="tts-help" id="tts-help">
+              <b>朗读方式：</b>“调用朗读”使用云端神经音色（晓涵/晓晓/云希等，音质更好，需要网络）；<br>
+              “本地朗读”使用浏览器/系统自带语音（无网络也能用）。点播放器上的“调用朗读/本地朗读”按钮可随时切换。<br>
+              <b>逐字高亮：</b>朗读时文字逐字高亮，已读过的字会变成淡绿色底纹，与未读部分形成对比。<br>
+              <b>苹果 iPhone：</b>“本地朗读”用的就是 iOS 自带中文语音，效果与系统朗读一致。<br>
+              若想用系统“朗读屏幕”：设置，辅助功能，朗读内容，开启“朗读屏幕”，
+              打开本页后<b>双指从屏幕顶部下滑</b>即可整篇朗读，可后台播放。<br>
+              <b>锁屏/切后台续播：</b>网页朗读受 iOS 限制，锁屏后可能被系统暂停；本播放器已加“后台续播”兼容处理，请以实测为准。<br>
+              最稳的方案是上面的系统“朗读屏幕”，支持锁屏后继续朗读（使用系统语音，当前为李牧）。<br>
+              <b>电脑 Edge：</b>地址栏右侧“大声朗读”。<br>
+              <b>安卓 Chrome：</b>菜单 → 朗读网页（部分版本支持）。
+            </div>
+          </div>
+        </div>
+      </div>
       <button class="btn-circle" id="btn-play" title="播放/暂停">
         <svg class="ico-play" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
         <svg class="ico-pause" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4.5" height="14" rx="1"/><rect x="13.5" y="5" width="4.5" height="14" rx="1"/></svg>
       </button>
-      <button class="btn-mini" id="btn-done">标记已读</button>
-      <div class="more-wrap">
-        <button class="btn-mini" id="btn-more">更多功能</button>
-        <div class="more-menu" id="more-menu">
-          <div class="more-info" id="more-status"></div>
-          <div class="more-info" id="more-voice"></div>
-          <div class="more-info" id="more-voice-list"></div>
-          <button class="btn-mini" id="btn-stop"><span class="ico ico-stop"></span>停止</button>
-          <button class="btn-mini" id="btn-prev"><span class="ico ico-prev"></span>上一句</button>
-          <button class="btn-mini" id="btn-next"><span class="ico ico-next"></span>下一句</button>
-          <button class="btn-mini" id="btn-voice">声音：默认</button>
-          <button class="btn-mini" id="btn-help">系统朗读说明</button>
-          <div class="tts-help" id="tts-help">
-            <b>苹果 iPhone：</b>网页“播放”按钮用的就是 iOS 自带中文语音，效果与系统朗读一致。<br>
-            若想用系统“朗读屏幕”：设置，辅助功能，朗读内容，开启“朗读屏幕”，
-            打开本页后<b>双指从屏幕顶部下滑</b>即可整篇朗读，可后台播放。<br>
-            <b>锁屏/切后台续播：</b>网页朗读受 iOS 限制，锁屏后可能被系统暂停；本播放器已加“后台续播”兼容处理，请以实测为准。<br>
-            最稳的方案是上面的系统“朗读屏幕”，支持锁屏后继续朗读（使用系统语音，当前为李牧）。<br>
-            <b>电脑 Edge：</b>地址栏右侧“大声朗读”。<br>
-            <b>安卓 Chrome：</b>菜单 → 朗读网页（部分版本支持）。
-          </div>
-        </div>
-      </div>
     </div>
     <div class="tts-progress"><span id="tts-bar-fill"></span></div>
     <div class="tts-status" id="tts-status"></div>

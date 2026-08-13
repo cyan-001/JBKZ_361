@@ -89,8 +89,14 @@ body {
 .eq.paused i { animation-play-state: paused; height: 4px; }
 @keyframes eq { 0%,100% { height: 3px; } 50% { height: 12px; } }
 
-.tts-controls { display: flex; align-items: center; justify-content: center;
-  gap: 8px; margin-top: 8px; flex-wrap: nowrap; }
+.tts-controls {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center; gap: 6px 10px; margin-top: 8px;
+}
+.tts-btns { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.tts-btns-1 { grid-column: 1; grid-row: 1; }
+.tts-btns-2 { grid-column: 1; grid-row: 2; }
+.tts-controls #btn-play { grid-column: 2; grid-row: 1 / 3; justify-self: center; }
 .tts-controls .btn-mini { flex: 0 1 auto; white-space: nowrap; }
 .btn-circle {
   width: 58px; height: 58px; border-radius: 50%; border: none;
@@ -325,7 +331,19 @@ body {
 
 /* ---------- sentence highlight ---------- */
 .sent { border-radius: 3px; transition: background .2s; }
-.sent.reading { background: var(--read); box-shadow: 0 0 0 2px #fff1a8; }
+.sent.reading { background: rgba(245,158,11,.09); }
+
+/* ---------- 逐字朗读高亮 & 已读标记 ----------
+ * .ch.current = 正在朗读的这一个字（醒目黄）
+ * .ch.read    = 已读过的字（淡绿半透明，与未读形成对比）
+ * .sent.read  = 整句已读完（更淡的绿，作为整句底色） */
+.ch { border-radius: 2px; transition: background .12s ease; }
+.ch.current { background: var(--read); box-shadow: 0 0 0 1px rgba(245,158,11,.45); }
+.ch.read { background: rgba(18,94,87,.09); }
+.sent.read { background: rgba(18,94,87,.06); }
+
+/* 引擎按钮：当前选中的朗读方式反色 */
+.btn-mini.active { background: var(--teal); color: #fff; }
 
 /* ---------- page nav ---------- */
 .page-nav { display: flex; gap: 10px; margin: 18px 0; }

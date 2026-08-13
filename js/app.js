@@ -1,16 +1,35 @@
 /* 公众号复习系列 · 网站版
- * 功能：网页朗读（Web Speech API）、句级高亮、阅读进度、上一篇/下一篇、键盘快捷键 */
+ * 功能：逐字朗读高亮、双引擎朗读（调用朗读=云端神经音色 / 本地朗读=系统语音）、
+ *       已读标记（淡绿底纹）、阅读进度、上一篇/下一篇、键盘快捷键 */
 (function () {
   "use strict";
 
+  /* ---------- 常量 ---------- */
   var SUPPORTED = "speechSynthesis" in window;
+  // 云端调用朗读：来自《语音包来源》的 edge-tts 风格 Worker 接口
+  var WORKER_URL = "https://tts-voice-magic2026.screenbks-89d.workers.dev/v1/audio/speech";
+  var API_VOICES = [
+    { id: "zh-CN-XiaohanNeural",  name: "晓涵（优雅女声）" },
+    { id: "zh-CN-XiaoxiaoNeural", name: "晓晓（温柔女声）" },
+    { id: "zh-CN-YunxiNeural",    name: "云希（清朗男声）" },
+    { id: "zh-CN-YunjianNeural",  name: "云健（沉稳男声）" },
+    { id: "zh-CN-XiaoyiNeural",   name: "晓伊（活泼女声）" },
+    { id: "zh-CN-YunyeNeural",    name: "云叶（自然男声）" }
+  ];
+  var CHAR_MS = 220;               // 本地引擎逐字计时的基准时长/字
+  var ENGINE_KEY = "wx361-engine-v1";
+  var APIVOICE_KEY = "wx361-apivoice-v1";
+  var RM_KEY = "wx361-readmarks-v1";
+
   var content = document.getElementById("article-content");
-  var sentences = [];          // {el, text}
-  var current = -1;            // 当前朗读到第几句
+  var sentences = [];              // {el, text, chars, rawToNS}
+  var current = -1;                // 当前朗读到第几句
   var playing = false;
-  var rate = 1;
-  var voice = null;
   var paused = false;
+  var rate = 1;
+  var voice = null;                // 本地引擎语音
+  var engine = loadEngine();       // "api" | "local"
+  var apiVoiceIdx = loadApiVoiceIdx();
   var articleId = document.body.getAttribute("data-article");
 
   /* ---------- 进度条 ---------- */
@@ -64,7 +83,32 @@
     if (el) el.classList.toggle("done", !!done);
   }
 
-  /* ---------- 分句 ---------- */
+  /* ---------- 已读标记（逐句持久化） ---------- */
+  function loadRM() { try { return JSON.parse(localStorage.getItem(RM_KEY)) || {}; } catch (e) { return {}; } }
+  function saveRM(o) { try { localStorage.setItem(RM_KEY, JSON.stringify(o)); } catch (e) {} }
+  function persistReadCount(n) {
+    if (!articleId) return;
+    var o = loadRM();
+    if (n > (o[articleId] || 0)) { o[articleId] = n; saveRM(o); }
+  }
+  function markSentenceRead(i, persist) {
+    if (i < 0 || i >= sentences.length) return;
+    var s = sentences[i];
+    if (s.el) { s.el.classList.remove("reading"); s.el.classList.add("read"); }
+    var chars = s.chars || [];
+    for (var k = 0; k < chars.length; k++) {
+      chars[k].classList.remove("current");
+      chars[k].classList.add("read");
+    }
+    if (persist !== false) persistReadCount(i + 1);
+  }
+  function applyReadMarks() {
+    if (!articleId) return;
+    var n = loadRM()[articleId] || 0;
+    for (var i = 0; i < n && i < sentences.length; i++) markSentenceRead(i, false);
+  }
+
+  /* ---------- 分句 + 逐字包裹 ---------- */
   function splitSentences() {
     if (!content) return;
     var walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT, null);
@@ -86,7 +130,6 @@
         }
         out.push(p);
       }
-      if (out.length <= 1) return; // 已经是短句，不用包 span
       var frag = document.createDocumentFragment();
       out.forEach(function (p) {
         if (!p.trim()) return;
@@ -103,17 +146,105 @@
     if (sentences.length === 0 && content.textContent.trim()) {
       sentences.push({ el: null, text: content.textContent.trim() });
     }
+    // 每个句子里把每个可见字包成 .ch，用于逐字高亮
+    sentences.forEach(wrapChars);
   }
 
-  /* ---------- 语音 ---------- */
-  function pickVoice() {
-    return preferredVoice() || null;
+  function wrapChars(s) {
+    if (!s.el) return;
+    var walker = document.createTreeWalker(s.el, NodeFilter.SHOW_TEXT, null);
+    var pending = [];
+    var ns = 0, raw = 0;
+    var rawToNS = [];
+    var nsToRaw = [];
+    while (walker.nextNode()) {
+      var n = walker.currentNode;
+      var t = n.textContent;
+      if (!t) continue;
+      var frag = document.createDocumentFragment();
+      for (var k = 0; k < t.length; k++) {
+        var ch = t.charAt(k);
+        rawToNS.push(ns);
+        if (/\s/.test(ch)) {
+          frag.appendChild(document.createTextNode(ch));
+          raw++;
+          continue;
+        }
+        var sp = document.createElement("span");
+        sp.className = "ch";
+        sp.setAttribute("data-c", ns);
+        sp.textContent = ch;
+        frag.appendChild(sp);
+        nsToRaw[ns] = raw;
+        ns++;
+        raw++;
+      }
+      pending.push([n, frag]);
+    }
+    pending.forEach(function (pair) {
+      pair[0].parentNode.replaceChild(pair[1], pair[0]);
+    });
+    s.chars = s.el.querySelectorAll(".ch");
+    s.rawToNS = rawToNS;
+    s.nsToRaw = nsToRaw;
   }
+
+  /* ---------- 语音：引擎选择 ---------- */
+  function loadEngine() {
+    try {
+      var v = localStorage.getItem(ENGINE_KEY);
+      if (v === "api" || v === "local") return v;
+    } catch (e) {}
+    return "api"; // 默认使用新接入的云端“调用朗读”
+  }
+  function saveEngine(v) { try { localStorage.setItem(ENGINE_KEY, v); } catch (e) {} }
+  function loadApiVoiceIdx() {
+    try {
+      var n = parseInt(localStorage.getItem(APIVOICE_KEY), 10);
+      if (!isNaN(n) && n >= 0 && n < API_VOICES.length) return n;
+    } catch (e) {}
+    return 0;
+  }
+  function saveApiVoiceIdx(n) { try { localStorage.setItem(APIVOICE_KEY, String(n)); } catch (e) {} }
+
+  function updateEngineBtn() {
+    var el = document.getElementById("btn-engine");
+    if (!el) return;
+    el.textContent = engine === "api" ? "调用朗读" : "本地朗读";
+    el.classList.toggle("active", engine === "api");
+    el.title = engine === "api"
+      ? "当前：调用朗读（云端神经音色，需网络）"
+      : "当前：本地朗读（系统语音，无需网络）";
+  }
+
+  function toggleEngine() {
+    if (engine === "api") {
+      if (!SUPPORTED) { setStatus("当前浏览器不支持本地朗读，仍使用调用朗读"); return; }
+      engine = "local";
+    } else {
+      engine = "api";
+    }
+    saveEngine(engine);
+    var wasActive = playing || paused;
+    stop();
+    if (wasActive && current >= 0) {
+      playing = true;
+      setPlayIcon();
+      speakIndex(current, 0);
+    }
+    updateEngineBtn();
+    updateVoiceTip();
+    updateVoiceBtn();
+    updateVoiceList();
+  }
+
+  /* ---------- 语音：本地引擎（系统 speechSynthesis） ---------- */
   function zhVoices() {
     try {
       return window.speechSynthesis.getVoices().filter(function (v) { return /^zh/i.test(v.lang); });
     } catch (e) { return []; }
   }
+  function pickVoice() { return preferredVoice() || null; }
   if (SUPPORTED) {
     voice = pickVoice();
     window.speechSynthesis.onvoiceschanged = function () {
@@ -139,7 +270,6 @@
       var v = vs.filter(function (x) { return x.name === saved; })[0];
       if (v) return v;
     }
-    // 优先李牧（优化音质），其次常见中文语音
     var names = ["李牧", "李穆", "李沐", "limu", "li mu", "婷婷", "小美", "优优", "彬彬"];
     for (var i = 0; i < names.length; i++) {
       var re = new RegExp(names[i], "i");
@@ -149,102 +279,450 @@
     return null;
   }
 
-  function speakIndex(i) {
-    if (!SUPPORTED || i < 0 || i >= sentences.length) return;
-    current = i;
-    updateProgress();
-    var speakText = cleanForSpeech(sentences[i].text);
-    if (!speakText) { advanceAfterSilence(); return; }
-    var u = new SpeechSynthesisUtterance(speakText);
-    var hasVoice = voice && zhVoices().indexOf(voice) >= 0;
-    if (hasVoice) u.voice = voice;
-    u.lang = hasVoice && voice.lang ? voice.lang : "zh-CN";
-    u.rate = rate;
-    u.onend = function () {
-      if (playing) {
-        if (current + 1 < sentences.length) {
-          speakIndex(current + 1);
-        } else {
-          stop();
-          setStatus("已读完 ✅");
-        }
-      }
-    };
-    u.onerror = function () {
-      if (playing) { stop(); setStatus("朗读中断，请重试"); }
-    };
-    highlight(current);
-    window.speechSynthesis.speak(u);
-    setStatus("正在朗读：第 " + (current + 1) + " / " + sentences.length + " 句");
+  // 剔除会被语音读出来的装饰字符，并记录“清洗后下标 → 原始文本下标”映射
+  var DECOR_RE = /[▸▍★☆◆⊙◇●◎○※→↳📐▪•·♪™®©¤†‡§¶]/g;
+  function cleanMap(s) {
+    var out = "", map = [], prevSpace = false;
+    for (var i = 0; i < s.length; i++) {
+      var ch = s.charAt(i);
+      if (ch === "→") ch = "，";
+      if (DECOR_RE.test(ch)) ch = " ";
+      if (ch === "\u200b") continue;
+      if (ch === " ") { if (prevSpace) continue; prevSpace = true; }
+      else prevSpace = false;
+      out += ch;
+      map.push(i);
+    }
+    var start = 0, end = out.length;
+    while (start < end && out.charAt(start) === " ") start++;
+    while (end > start && out.charAt(end - 1) === " ") end--;
+    return { clean: out.slice(start, end), map: map.slice(start, end) };
+  }
+  function cleanForSpeech(s) {
+    return cleanMap(s).clean;
   }
 
-  function advanceAfterSilence() {
-    if (playing) {
-      if (current + 1 < sentences.length) {
-        speakIndex(current + 1);
-      } else {
-        stop();
-        setStatus("已读完 ✅");
+  // 逐字标记：upto 为“非空白字符序号”（即 .ch 的下标）
+  function markChars(i, upto) {
+    if (i < 0 || i >= sentences.length) return;
+    var s = sentences[i];
+    var chars = s.chars || [];
+    var hasCurrent = false;
+    for (var k = 0; k < chars.length; k++) {
+      chars[k].classList.toggle("read", upto > 0 && k < upto);
+      var cur = upto >= 0 && k === upto;
+      chars[k].classList.toggle("current", cur);
+      if (cur) hasCurrent = true;
+    }
+    if (s.el) s.el.classList.toggle("reading", hasCurrent);
+  }
+
+  var localTimer = null;
+  var localDomIdx = 0;
+  function stopLocalTick() {
+    if (localTimer) { clearInterval(localTimer); localTimer = null; }
+  }
+  function startLocalTick(i, startNS) {
+    stopLocalTick();
+    var chars = sentences[i].chars || [];
+    if (!chars.length) return;
+    localDomIdx = 0;
+    while (localDomIdx < chars.length - 1 && localDomIdx < startNS) localDomIdx++;
+    localTimer = setInterval(function () {
+      if (!playing || current !== i || !localTimer) return;
+      var el = chars[localDomIdx];
+      if (el) markChars(i, localDomIdx);
+      if (localDomIdx < chars.length - 1) localDomIdx++;
+      else { clearInterval(localTimer); localTimer = null; }
+    }, Math.max(80, CHAR_MS / rate));
+  }
+
+  function speakLocal(i, charStart) {
+    var s = sentences[i];
+    var chars = s.chars || [];
+    var startNS = 0;
+    if (chars.length) startNS = Math.min(Math.max(0, charStart || 0), chars.length - 1);
+    var baseRaw = 0;
+    if (startNS > 0 && s.nsToRaw && s.nsToRaw[startNS] != null) baseRaw = s.nsToRaw[startNS];
+    var t = cleanMap(s.text.slice(baseRaw));
+    if (!t.clean) { advanceAfterSilence(); return; }
+    var u = new SpeechSynthesisUtterance(t.clean);
+    var hasVoice = voice && zhVoices().indexOf(voice) >= 0;
+    if (hasVoice) {
+      try { u.voice = voice; } catch (e) {} // 语音对象可能过期/不被支持，失败时退回默认
+    }
+    u.lang = hasVoice && voice.lang ? voice.lang : "zh-CN";
+    u.rate = rate;
+    markChars(i, startNS);
+    startLocalTick(i, startNS);
+    u.onboundary = function (e) {
+      if (!playing || current !== i) return;
+      if (e.charIndex == null || !t.map || !s.rawToNS) return;
+      // 找到清洗文本下标对应的原始文本下标，再换算成非空白序号
+      var raw = 0;
+      for (var j = 0; j < t.map.length; j++) {
+        if (t.map[j] >= e.charIndex) { raw = t.map[j]; break; }
       }
+      var origRaw = baseRaw + raw;
+      var ns = s.rawToNS[Math.min(origRaw, s.rawToNS.length - 1)];
+      if (ns > localDomIdx) { localDomIdx = ns; }
+      markChars(i, localDomIdx);
+    };
+    u.onend = function () {
+      if (!playing || current !== i) return;
+      stopLocalTick();
+      finishSentence(i);
+      advanceNext(i);
+    };
+    u.onerror = function (e) {
+      if (!playing || current !== i) return;
+      stopLocalTick();
+      if (e.error === "interrupted" || e.error === "canceled") return;
+      stop();
+      setStatus("本地朗读中断，请重试");
+    };
+    window.speechSynthesis.speak(u);
+    setStatus("本地朗读：第 " + (current + 1) + " / " + sentences.length + " 句");
+  }
+
+  /* ---------- 语音：调用引擎（云端 Worker，edge-tts 神经音色） ---------- */
+  var apiAudio = null;
+  var apiState = null;       // {i, piece, pieces}
+  var apiDuration = 0;
+  var apiCache = {};         // key -> Promise<url>
+  var apiUrls = {};          // key -> url（用于释放）
+  var apiTimes = {};         // i -> [{startNS, times}]
+  var fallbackBusy = false;
+
+  function ensureApiAudio() {
+    if (apiAudio) return apiAudio;
+    apiAudio = new Audio();
+    apiAudio.id = "tts-api-audio";
+    apiAudio.preload = "auto";
+    document.body.appendChild(apiAudio);
+    apiAudio.addEventListener("timeupdate", syncApiChars);
+    apiAudio.addEventListener("loadedmetadata", function () {
+      apiDuration = isFinite(apiAudio.duration) ? apiAudio.duration : 0;
+    });
+    apiAudio.addEventListener("ended", apiPieceEnded);
+    apiAudio.addEventListener("error", function () {
+      if (playing && apiState) apiFail();
+    });
+    return apiAudio;
+  }
+
+  // 超长句切成不超过 400 字的小段，逐段合成，保证接口稳定；baseNS 支持从点到的字开始
+  function apiSegments(i, baseNS) {
+    var s = sentences[i];
+    var chars = s.chars || [];
+    var ns0 = chars.length ? Math.min(Math.max(0, baseNS || 0), chars.length) : 0;
+    var baseRaw = 0;
+    if (ns0 > 0 && s.nsToRaw) baseRaw = s.nsToRaw[Math.min(ns0, chars.length - 1)] || 0;
+    var text = s.text.slice(baseRaw);
+    if (text.length <= 600) return [{ text: text, startNS: ns0, nsLen: countNS(text) }];
+    var pieces = [], buf = "", startAcc = ns0, bufNS = 0;
+    var cut = /[。！？；!?;]/;
+    for (var k = 0; k < text.length; k++) {
+      var ch = text.charAt(k);
+      buf += ch;
+      if (!/\s/.test(ch)) bufNS++;
+      if ((bufNS >= 150 && cut.test(ch)) || bufNS >= 400) {
+        pieces.push({ text: buf, startNS: startAcc, nsLen: bufNS });
+        startAcc += bufNS; buf = ""; bufNS = 0;
+      }
+    }
+    if (buf) pieces.push({ text: buf, startNS: startAcc, nsLen: bufNS });
+    return pieces;
+  }
+  function countNS(s) {
+    var n = 0;
+    for (var k = 0; k < s.length; k++) if (!/\s/.test(s.charAt(k))) n++;
+    return n;
+  }
+
+  function buildApiTimes(i, baseNS) {
+    var key = i + ":" + (baseNS || 0);
+    if (apiTimes[key]) return apiTimes[key];
+    var chars = sentences[i].chars || [];
+    var pieces = apiSegments(i, baseNS);
+    var out = pieces.map(function (seg) {
+      var weights = [], total = 0;
+      for (var k = seg.startNS; k < seg.startNS + seg.nsLen && k < chars.length; k++) {
+        var ch = chars[k].textContent;
+        var w = /[，。！？；、：,.;:!?]/.test(ch) ? 1.7 : 1;
+        if (DECOR_RE.test(ch)) w = 0.2;
+        weights.push(w); total += w;
+      }
+      var times = [], acc = 0;
+      weights.forEach(function (w) { acc += w; times.push(acc / total); });
+      return { startNS: seg.startNS, times: times };
+    });
+    apiTimes[key] = out;
+    return out;
+  }
+  function upperBound(arr, val) {
+    var lo = 0, hi = arr.length;
+    while (lo < hi) {
+      var mid = (lo + hi) >> 1;
+      if (arr[mid] < val) lo = mid + 1; else hi = mid;
+    }
+    return lo;
+  }
+
+  function speakApi(i, charStart) {
+    ensureApiAudio();
+    var baseNS = charStart || 0;
+    var pieces = apiSegments(i, baseNS);
+    var st = 0;
+    for (var k = 0; k < pieces.length; k++) {
+      if (pieces[k].startNS + pieces[k].nsLen > baseNS) { st = k; break; }
+    }
+    apiState = { i: i, piece: st, pieces: pieces, baseNS: baseNS };
+    apiDuration = 0;
+    buildApiTimes(i, baseNS);
+    apiLoadAndPlay(i, st);
+    prefetchApi(i);
+    setStatus("调用朗读：正在合成语音…");
+  }
+
+  function apiLoadAndPlay(i, pieceIdx) {
+    var st = apiState;
+    if (!st || st.i !== i) return;
+    var seg = st.pieces[pieceIdx];
+    loadApiUrl(i, pieceIdx, st.baseNS, function (url) {
+      if (!playing || !apiState || apiState.i !== i) return;
+      apiAudio.src = url;
+      apiAudio.currentTime = 0;
+      var pt = buildApiTimes(i, st.baseNS)[pieceIdx];
+      markChars(i, pt.startNS);
+      var p = apiAudio.play();
+      if (p && p.catch) p.catch(function () {});
+      setStatus("调用朗读：第 " + (i + 1) + " / " + sentences.length + " 句");
+    });
+  }
+
+  function loadApiUrl(i, pieceIdx, baseNS, cb) {
+    var key = i + ":" + (baseNS || 0) + ":" + pieceIdx;
+    if (apiCache[key]) {
+      apiCache[key].then(cb, function () { apiFail(); });
+      return;
+    }
+    var seg = apiSegments(i, baseNS)[pieceIdx];
+    var text = cleanForSpeech(seg.text);
+    if (!text) { if (cb) cb(null); return; }
+    var p = fetchApiAudio(text).then(function (url) {
+      apiUrls[key] = url;
+      return url;
+    });
+    apiCache[key] = p;
+    p.then(cb, function () { apiFail(); });
+  }
+
+  function fetchApiAudio(text) {
+    if (typeof fetch !== "function") return Promise.reject(new Error("no fetch"));
+    return fetch(WORKER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        input: text,
+        voice: API_VOICES[apiVoiceIdx].id,
+        speed: rate,
+        pitch: "0"
+      })
+    }).then(function (resp) {
+      if (!resp.ok) {
+        return resp.text().then(function (t) {
+          throw new Error("服务错误 " + resp.status + ": " + String(t).slice(0, 120));
+        });
+      }
+      return resp.blob().then(function (blob) { return URL.createObjectURL(blob); });
+    });
+  }
+
+  function resetApiCache() {
+    Object.keys(apiUrls).forEach(function (k) { try { URL.revokeObjectURL(apiUrls[k]); } catch (e) {} });
+    apiUrls = {};
+    apiCache = {};
+    apiTimes = {};
+  }
+
+  function prefetchApi(i) {
+    if (engine !== "api") return;
+    for (var k = i + 1; k <= i + 2 && k < sentences.length; k++) {
+      var pieces = apiSegments(k, 0);
+      pieces.forEach(function (seg, pi) {
+        var key = k + ":" + 0 + ":" + pi;
+        if (!apiCache[key] && cleanForSpeech(seg.text)) loadApiUrl(k, pi, 0, function () {});
+      });
     }
   }
 
-  // 剔除会被语音读出来的装饰字符（保留 ①②⑶ 等编号与数字）
-  var DECOR_RE = /[▸▍★☆◆⊙◇●◎○※→↳📐▪•·♪™®©¤†‡§¶]/g;
-  function cleanForSpeech(s) {
-    return s.replace(/→/g, "，")
-      .replace(DECOR_RE, " ")
-      .replace(/\u200b/g, "")
-      .replace(/\s{2,}/g, " ").trim();
+  function syncApiChars() {
+    var st = apiState;
+    if (!st || !apiDuration || !apiAudio || !apiAudio.duration) return;
+    var frac = apiAudio.currentTime / apiDuration;
+    if (frac < 0) frac = 0;
+    if (frac > 1) frac = 1;
+    var pt = buildApiTimes(st.i, st.baseNS)[st.piece];
+    if (!pt || !pt.times.length) return;
+    var domIdx = upperBound(pt.times, frac);
+    markChars(st.i, pt.startNS + domIdx);
   }
 
-  function highlight(i) {
-    sentences.forEach(function (s, idx) {
-      if (s.el) s.el.classList.toggle("reading", idx === i);
-    });
-    var el = sentences[i] && sentences[i].el;
+  function apiPieceEnded() {
+    var st = apiState;
+    if (!st || !playing) return;
+    if (st.piece + 1 < st.pieces.length) {
+      st.piece++;
+      apiDuration = 0;
+      apiLoadAndPlay(st.i, st.piece);
+      return;
+    }
+    finishSentence(st.i);
+    advanceNext(st.i);
+  }
+
+  function apiFail() {
+    if (fallbackBusy) return;
+    fallbackBusy = true;
+    var keep = current >= 0 ? current : 0;
+    if (!SUPPORTED) {
+      stop();
+      setStatus("调用朗读失败（网络或服务异常），且当前浏览器不支持本地朗读");
+      fallbackBusy = false;
+      return;
+    }
+    setStatus("调用朗读失败，已自动切换到本地朗读");
+    engine = "local";
+    saveEngine("local");
+    stop();
+    updateEngineBtn();
+    updateVoiceTip();
+    updateVoiceBtn();
+    updateVoiceList();
+    playing = true;
+    setPlayIcon();
+    speakIndex(keep, 0);
+    fallbackBusy = false;
+  }
+
+  /* ---------- 统一播放控制 ---------- */
+  function speakIndex(i, charStart) {
+    if (i < 0 || i >= sentences.length) return;
+    current = i;
+    paused = false;
+    updateProgress();
+    scrollCurrentIntoView();
+    var text = cleanForSpeech(sentences[i].text);
+    if (!text) { advanceAfterSilence(); return; }
+    if (engine === "api") speakApi(i, charStart || 0);
+    else if (SUPPORTED) speakLocal(i, charStart || 0);
+    else { showFallback(); }
+  }
+
+  function finishSentence(i) {
+    markSentenceRead(i, true);
+  }
+
+  function advanceNext(i) {
+    if (!playing || current !== i) return;
+    if (i + 1 < sentences.length) {
+      speakIndex(i + 1, 0);
+    } else {
+      finishPlay();
+    }
+  }
+  function advanceAfterSilence() {
+    if (playing) advanceNext(current);
+  }
+  function finishPlay() {
+    stop();
+    setStatus("已读完 ✅");
+  }
+
+  function scrollCurrentIntoView() {
+    var el = sentences[current] && sentences[current].el;
     if (el) {
       try { el.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (e) {}
     }
   }
 
   function play() {
-    if (!SUPPORTED) { showFallback(); return; }
-    keepAudioSession(true);
-    if (paused && current >= 0) {
-      window.speechSynthesis.resume();
-      paused = false;
-      playing = true;
-      setStatus("继续朗读：第 " + (current + 1) + " / " + sentences.length + " 句");
-      setPlayIcon();
-      return;
-    }
+    if (engine === "local" && !SUPPORTED) { showFallback(); return; }
+    if (paused && current >= 0) { resume(); return; }
     if (playing) return;
     var start = current >= 0 && current < sentences.length - 1 ? current + 1 : 0;
     playing = true;
+    paused = false;
     setPlayIcon();
-    speakIndex(start);
+    if (engine === "local") keepAudioSession(true);
+    speakIndex(start, 0);
+  }
+
+  function resume() {
+    paused = false;
+    playing = true;
+    setPlayIcon();
+    if (engine === "local") {
+      if (SUPPORTED) {
+        window.speechSynthesis.resume();
+        startLocalTick(current, lastMarkedNS(current));
+      }
+    } else if (apiAudio && apiAudio.src) {
+      var p = apiAudio.play();
+      if (p && p.catch) p.catch(function () {});
+    }
+    setStatus("继续朗读：第 " + (current + 1) + " / " + sentences.length + " 句");
+  }
+
+  function lastMarkedNS(i) {
+    var chars = sentences[i] && sentences[i].chars;
+    if (!chars) return 0;
+    for (var k = chars.length - 1; k >= 0; k--) {
+      if (chars[k].classList.contains("current") || chars[k].classList.contains("read")) return k + 1;
+    }
+    return 0;
   }
 
   function pause() {
-    if (!SUPPORTED || !playing) return;
-    window.speechSynthesis.pause();
+    if (!playing) return;
+    if (engine === "local") {
+      if (SUPPORTED) {
+        window.speechSynthesis.pause();
+        stopLocalTick();
+      }
+    } else if (apiAudio) {
+      apiAudio.pause();
+    }
     paused = true;
     playing = false;
     setStatus("已暂停（点播放继续）");
     setPlayIcon();
-    keepAudioSession(false);
   }
 
   function stop() {
     playing = false;
     paused = false;
-    if (SUPPORTED) window.speechSynthesis.cancel();
-    highlight(-1);
+    stopLocalTick();
+    if (SUPPORTED) { try { window.speechSynthesis.cancel(); } catch (e) {} }
+    if (apiAudio) {
+      apiAudio.pause();
+      apiAudio.currentTime = 0;
+    }
+    apiState = null;
+    clearAllCurrent();
     setStatus("");
     setPlayIcon();
     updateProgress();
     keepAudioSession(false);
+  }
+
+  function clearAllCurrent() {
+    sentences.forEach(function (s) {
+      if (s.el) s.el.classList.remove("reading");
+      var chars = s.chars || [];
+      for (var k = 0; k < chars.length; k++) chars[k].classList.remove("current");
+    });
   }
 
   function prevSentence() {
@@ -252,7 +730,7 @@
       stop();
       playing = true;
       setPlayIcon();
-      speakIndex(current - 1);
+      speakIndex(current - 1, 0);
     }
   }
   function nextSentence() {
@@ -260,12 +738,11 @@
       stop();
       playing = true;
       setPlayIcon();
-      speakIndex(current + 1);
+      speakIndex(current + 1, 0);
     }
   }
 
   function togglePlay() {
-    if (!SUPPORTED) { showFallback(); return; }
     if (playing) pause(); else play();
   }
 
@@ -322,21 +799,31 @@
   function updateVoiceTip() {
     var el = document.getElementById("more-voice");
     if (!el) return;
-    el.textContent = voice
-      ? "当前语音：" + voice.name
-      : "使用系统默认中文语音";
+    el.textContent = engine === "api"
+      ? "当前引擎：调用朗读（云端神经音色）"
+      : "当前引擎：本地朗读（系统语音）";
   }
 
   function updateVoiceBtn() {
     var el = document.getElementById("btn-voice");
     if (!el) return;
-    var name = voice ? voice.name : "系统默认";
-    el.textContent = "声音：" + (name.length > 12 ? name.slice(0, 12) + "…" : name);
+    var name;
+    if (engine === "api") {
+      name = API_VOICES[apiVoiceIdx].name;
+      el.textContent = "云端：" + (name.length > 12 ? name.slice(0, 12) + "…" : name);
+    } else {
+      name = voice ? voice.name : "系统默认";
+      el.textContent = "声音：" + (name.length > 12 ? name.slice(0, 12) + "…" : name);
+    }
   }
 
   function updateVoiceList() {
     var el = document.getElementById("more-voice-list");
     if (!el) return;
+    if (engine === "api") {
+      el.textContent = "云端音色：" + API_VOICES.map(function (v) { return v.name; }).join("；");
+      return;
+    }
     var vs = zhVoices();
     el.textContent = vs.length
       ? "可用语音：" + vs.map(function (v) { return v.name; }).join("；")
@@ -344,39 +831,47 @@
   }
 
   function nextVoice() {
-    if (!SUPPORTED) { showFallback(); return; }
-    var vs = zhVoices();
-    var idx = voice ? vs.indexOf(voice) : -1;
-    if (!vs.length) {
-      voice = null;
-      saveVoiceName("");
-      setStatus("没有可切换的语音，跟随 iPhone 设置");
-    } else if (idx === vs.length - 1) {
-      voice = null;
-      saveVoiceName("");
-      setStatus("已切回系统默认语音（跟随 iPhone 设置）");
+    if (engine === "api") {
+      apiVoiceIdx = (apiVoiceIdx + 1) % API_VOICES.length;
+      saveApiVoiceIdx(apiVoiceIdx);
+      setStatus("云端声音已切换到：" + API_VOICES[apiVoiceIdx].name);
     } else {
-      voice = vs[(idx + 1) % vs.length];
-      saveVoiceName(voice.name);
-      setStatus("已切换到：" + voice.name);
+      if (!SUPPORTED) { showFallback(); return; }
+      var vs = zhVoices();
+      var idx = voice ? vs.indexOf(voice) : -1;
+      if (!vs.length) {
+        voice = null;
+        saveVoiceName("");
+        setStatus("没有可切换的语音，跟随 iPhone 设置");
+      } else if (idx === vs.length - 1) {
+        voice = null;
+        saveVoiceName("");
+        setStatus("已切回系统默认语音（跟随 iPhone 设置）");
+      } else {
+        voice = vs[(idx + 1) % vs.length];
+        saveVoiceName(voice.name);
+        setStatus("已切换到：" + voice.name);
+      }
     }
     updateVoiceTip();
     updateVoiceBtn();
     updateVoiceList();
-    if (playing || paused) {
-      var keep = current >= 0 ? current : 0;
-      stop();
-      playing = true;
-      setPlayIcon();
-      speakIndex(keep);
-    }
+    if (playing || paused) restartCurrent();
+  }
+
+  function restartCurrent() {
+    var keep = current >= 0 ? current : 0;
+    stop();
+    playing = true;
+    setPlayIcon();
+    speakIndex(keep, 0);
   }
 
   function showFallback() {
-    setStatus("当前浏览器不支持网页朗读，可用系统朗读（设置→辅助功能→朗读内容→朗读屏幕）");
+    setStatus("当前浏览器不支持本地朗读，可改用“调用朗读”（云端神经音色）");
   }
 
-  /* 静音音频保活：让 iOS 在锁屏/切后台时尽量不中断网页朗读（实测为准） */
+  /* 静音音频保活：让 iOS 在锁屏/切后台时尽量不中断本地网页朗读（实测为准） */
   var bgCtx = null;
   function keepAudioSession(on) {
     try {
@@ -410,6 +905,7 @@
   bind("btn-stop", stop);
   bind("btn-prev", prevSentence);
   bind("btn-next", nextSentence);
+  bind("btn-engine", toggleEngine);
   bind("btn-help", function (e) {
     e.stopPropagation();
     var el = document.getElementById("tts-help");
@@ -421,6 +917,8 @@
     rate = rates[(idx + 1) % rates.length];
     var el = document.getElementById("btn-rate");
     if (el) el.textContent = "倍速 " + rate.toFixed(2).replace(/0$/, "") + "×";
+    if (engine === "api") resetApiCache(); // 云端需要按新语速重新合成
+    if (playing || paused) restartCurrent();
   });
   bind("btn-voice", function (e) { e.stopPropagation(); nextVoice(); });
   bind("btn-done", toggleDone);
@@ -434,6 +932,7 @@
   setPlayIcon();
   updateProgress();
   updateVoiceBtn();
+  updateEngineBtn();
 
   /* ---------- 目录 / 导航 弹层 ---------- */
   var overlay = document.getElementById("sheet-overlay");
@@ -459,8 +958,12 @@
 
   /* 从后台/锁屏返回时尝试恢复朗读 */
   document.addEventListener("visibilitychange", function () {
-    if (!document.hidden && SUPPORTED && playing && !paused) {
+    if (document.hidden || !playing || paused) return;
+    if (engine === "local" && SUPPORTED) {
       try { window.speechSynthesis.resume(); } catch (e) {}
+    } else if (engine === "api" && apiAudio && apiAudio.src) {
+      var p = apiAudio.play();
+      if (p && p.catch) p.catch(function () {});
     }
   });
 
@@ -544,19 +1047,61 @@
     try { window.speechSynthesis.getVoices(); } catch (e) {}
     updateVoiceTip();
     updateVoiceList();
-  } else {
-    showFallback();
   }
   splitSentences();
+  applyReadMarks();
   onScroll();
 
-  /* 单击正文 → 从点击处开始朗读 */
+  /* 单击正文 → 从点击的那个字开始朗读 */
+  // 用光标位置定位到具体字（兼容点在高亮色块、嵌套元素上的情况）
+  function nsFromPoint(x, y) {
+    var range = null;
+    try {
+      if (document.caretRangeFromPoint) {
+        range = document.caretRangeFromPoint(x, y);
+      } else if (document.caretPositionFromPoint) {
+        var pos = document.caretPositionFromPoint(x, y);
+        if (pos && pos.offsetNode) {
+          range = document.createRange();
+          range.setStart(pos.offsetNode, pos.offset);
+          range.collapse(true);
+        }
+      }
+    } catch (e) {}
+    if (!range) return -1;
+    var node = range.startContainer;
+    var offset = range.startOffset;
+    var sent = node && node.nodeType === 3 ? node.parentNode : node;
+    while (sent && !(sent.classList && sent.classList.contains("sent"))) sent = sent.parentNode;
+    if (!sent) return -1;
+    var i = parseInt(sent.getAttribute("data-i"), 10);
+    if (isNaN(i) || i < 0 || i >= sentences.length) return -1;
+    var walker = document.createTreeWalker(sent, NodeFilter.SHOW_TEXT, null);
+    var ns = 0, hit = false;
+    while (walker.nextNode()) {
+      var tn = walker.currentNode;
+      var t2 = tn.textContent || "";
+      if (tn === node) {
+        var part = t2.slice(0, offset);
+        for (var k = 0; k < part.length; k++) if (!/\s/.test(part.charAt(k))) ns++;
+        hit = true;
+        break;
+      }
+      for (var k2 = 0; k2 < t2.length; k2++) if (!/\s/.test(t2.charAt(k2))) ns++;
+    }
+    if (!hit) return -1;
+    var chars = sentences[i].chars || [];
+    if (!chars.length) return 0;
+    // 浏览器光标通常在点击字符之后，回退一个字，让“点到的字”成为朗读起点
+    return Math.max(0, Math.min(ns - 1, chars.length - 1));
+  }
+
   if (content) {
     content.addEventListener("click", function (e) {
-      if (!SUPPORTED) { showFallback(); return; }
+      if (engine === "local" && !SUPPORTED) { showFallback(); return; }
       if (e.target.closest && e.target.closest("button, a, .sheet, .tts-bar, .tts-mini, #scroll-rail")) return;
-      var t = e.target;
-      var s = t && t.closest ? t.closest(".sent") : null;
+      var ch = e.target.closest && e.target.closest(".ch");
+      var s = e.target.closest && e.target.closest(".sent");
       var idx = s ? parseInt(s.getAttribute("data-i"), 10) : -1;
       if (idx < 0) {
         var y = e.clientY, best = -1, bd = 1e9;
@@ -569,10 +1114,19 @@
         idx = best;
       }
       if (idx < 0 || !sentences[idx]) return;
+      var startNS = 0;
+      if (ch) {
+        var c = parseInt(ch.getAttribute("data-c"), 10);
+        if (!isNaN(c)) startNS = c;
+      } else {
+        var nsPt = nsFromPoint(e.clientX, e.clientY);
+        if (nsPt >= 0) startNS = nsPt;
+      }
       stop();
       playing = true;
+      paused = false;
       setPlayIcon();
-      speakIndex(idx);
+      speakIndex(idx, startNS);
     });
   }
 
