@@ -232,6 +232,8 @@
       var on = (id === "btn-engine-pack" && engine === "pack") || (id === "btn-engine-local" && engine === "local");
       el.classList.toggle("active", on);
     });
+    var hint = document.getElementById("vol-hint");
+    if (hint) hint.hidden = engine !== "local";
   }
 
   function setEngine(next) {
@@ -423,6 +425,8 @@
   var apiState = null;       // {i, piece, pieces, baseNS, blobUrl}
   var apiTimes = {};         // "i:baseNS" -> [{startNS, times}]
   var fallbackBusy = false;
+  var audioCtx = null;       // Web Audio：音量增益（iOS 元素 volume 无效，用它保证真正生效）
+  var gainNode = null;
 
   function ensureApiAudio() {
     if (apiAudio) return apiAudio;
@@ -431,6 +435,10 @@
     apiAudio.preload = "auto";
     apiAudio.volume = volume;
     document.body.appendChild(apiAudio);
+    ensureVolumeGraph();
+    apiAudio.addEventListener("play", function () {
+      if (audioCtx && audioCtx.state === "suspended") { try { audioCtx.resume(); } catch (e) {} }
+    });
     apiAudio.addEventListener("timeupdate", function () {
       if (engine === "pack") packSyncChars(); else syncApiChars();
     });
@@ -833,7 +841,8 @@
   }
 
   function scrollCurrentIntoView() {
-    var el = sentences[current] && sentences[current].el;
+    var idx = engine === "pack" && pack.curSent >= 0 ? pack.curSent : current;
+    var el = sentences[idx] && sentences[idx].el;
     if (el) {
       try { el.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (e) {}
     }
@@ -980,6 +989,24 @@
   }
 
   /* ---------- 音量 ---------- */
+  function ensureVolumeGraph() {
+    if (!apiAudio || gainNode) return;
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      audioCtx = new AC();
+      gainNode = audioCtx.createGain();
+      gainNode.gain.value = volume;
+      var src = audioCtx.createMediaElementSource(apiAudio);
+      src.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      apiAudio.volume = 1; // 音量由 gain 节点控制（iOS 不支持元素 volume）
+      if (audioCtx.state === "suspended") audioCtx.resume();
+    } catch (e) {
+      audioCtx = null;
+      gainNode = null;
+    }
+  }
   function loadVolume() {
     try {
       var v = parseFloat(localStorage.getItem(VOLUME_KEY));
@@ -991,12 +1018,21 @@
   function setVolume(v) {
     volume = Math.min(1, Math.max(0, v));
     saveVolume(volume);
-    if (apiAudio) apiAudio.volume = volume;
+    if (gainNode) {
+      try { gainNode.gain.value = volume; } catch (e) {}
+      if (apiAudio) apiAudio.volume = 1;
+    } else if (apiAudio) {
+      apiAudio.volume = volume;
+    }
     var lbl = document.getElementById("vol-label");
     if (lbl) lbl.textContent = Math.round(volume * 100) + "%";
     var sl = document.getElementById("vol-slider");
     if (sl) sl.value = String(Math.round(volume * 100));
   }
+  // 供调试/测试确认音量实际生效值
+  window.__ttsVol = function () {
+    return gainNode ? gainNode.gain.value : (apiAudio ? apiAudio.volume : -1);
+  };
 
   /* ---------- 倍速（候选列表） ---------- */
   function setRate(r) {
@@ -1213,6 +1249,11 @@
   bind("btn-next", nextSentence);
   bind("btn-engine-pack", function () { setEngine("pack"); });
   bind("btn-engine-local", function () { setEngine("local"); });
+  bind("btn-back", function () {
+    if (current < 0 && pack.curSent < 0) { setStatus("还没有开始朗读"); return; }
+    scrollCurrentIntoView();
+    setStatus("已回到朗读位置");
+  });
   bind("btn-help", function (e) {
     e.stopPropagation();
     var el = document.getElementById("tts-help");

@@ -345,6 +345,17 @@ body {
 .ch { border-radius: 2px; transition: background .12s ease; }
 .ch.current { background: var(--read); box-shadow: 0 0 0 1px rgba(245,158,11,.45); }
 
+/* 标黄重点/考点知识点加粗 */
+#article-content span[style*="background-color:#fff1a8"] { font-weight: 700; }
+
+/* 五角星 / 菱形标识放大 */
+#article-content span[style*="clip-path:polygon(50% 0%"] {
+  width: 13px !important; height: 13px !important;
+}
+#article-content span[style*="transform:rotate(45deg)"] {
+  width: 11px !important; height: 11px !important;
+}
+
 /* 引擎按钮：当前选中的朗读方式反色 */
 .btn-mini.active { background: var(--teal); color: #fff; }
 
@@ -367,6 +378,8 @@ body {
 .rate-menu .rate-item.active { background: var(--teal); color: #fff; }
 .vol-menu { align-items: center; gap: 8px; min-width: 170px; padding: 10px 12px; }
 .vol-menu.open { display: flex; }
+.vol-menu { flex-wrap: wrap; }
+.vol-menu .vol-hint { flex-basis: 100%; font-size: 11px; color: #94a3b8; line-height: 1.6; }
 .vol-menu input[type="range"] { flex: 1; accent-color: var(--teal); cursor: pointer; }
 .vol-menu .vol-label { font-size: 12.5px; color: #475569; min-width: 40px; text-align: right; }
 
