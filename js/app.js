@@ -33,6 +33,7 @@
   var CHAR_MS = 220;               // 本地引擎逐字计时的基准时长/字
   var ENGINE_KEY = "wx361-engine-v1";
   var APIVOICE_KEY = "wx361-apivoice-v1";
+  var VOLUME_KEY = "wx361-volume-v1";
   var RM_KEY = "wx361-readmarks-v1";
 
   var content = document.getElementById("article-content");
@@ -41,11 +42,12 @@
   var playing = false;
   var paused = false;
   var rate = 1;
+  var volume = loadVolume();
   var voice = null;                // 本地引擎语音
   var engine = loadEngine();       // "api" | "local" | "pack"
   var apiVoiceIdx = loadApiVoiceIdx();
   var articleId = document.body.getAttribute("data-article");
-  var pack = { manifest: null, state: "idle", offsets: null, segs: null, segIdx: -1, lastDoneSent: -1 }; // 语音包
+  var pack = { manifest: null, state: "idle", offsets: null, segs: null, segIdx: -1, lastDoneSent: -1, curSent: -1 }; // 语音包
 
   /* ---------- 进度条 ---------- */
   var bar = document.getElementById("progress-bar");
@@ -56,6 +58,7 @@
     var p = max > 0 ? (h.scrollTop / max) : 0;
     bar.style.width = (p * 100).toFixed(2) + "%";
     saveReading(p);
+    updateReadRail();
   }
   window.addEventListener("scroll", onScroll, { passive: true });
 
@@ -382,6 +385,7 @@
     }
     u.lang = hasVoice && voice.lang ? voice.lang : "zh-CN";
     u.rate = rate;
+    u.volume = volume;
     markChars(i, startNS);
     startLocalTick(i, startNS);
     u.onboundary = function (e) {
@@ -425,6 +429,7 @@
     apiAudio = new Audio();
     apiAudio.id = "tts-api-audio";
     apiAudio.preload = "auto";
+    apiAudio.volume = volume;
     document.body.appendChild(apiAudio);
     apiAudio.addEventListener("timeupdate", function () {
       if (engine === "pack") packSyncChars(); else syncApiChars();
@@ -748,6 +753,7 @@
     if (!pack.offsets) return;
     var s0 = sentenceIndexForRaw(fromRaw);
     var s1 = sentenceIndexForRaw(toRaw);
+    pack.curSent = s1;
     var last = pack.lastDoneSent;
     for (var k = Math.max(s0, last + 1); k < s1; k++) markSentenceRead(k, false);
     pack.lastDoneSent = Math.max(last, s1 - 1);
@@ -770,6 +776,7 @@
     if (frac > 1) frac = 1;
     var curRaw = seg.s + (seg.e - seg.s) * frac;
     markPackRange(seg.s, curRaw);
+    updateReadRail();
   }
 
   function packFail() {
@@ -796,6 +803,7 @@
     paused = false;
     updateProgress();
     scrollCurrentIntoView();
+    updateReadRail();
     var text = cleanForSpeech(sentences[i].text);
     if (!text) { advanceAfterSilence(); return; }
     if (engine === "api") speakApi(i, charStart || 0);
@@ -901,6 +909,7 @@
     setStatus("");
     setPlayIcon();
     updateProgress();
+    updateReadRail();
     keepAudioSession(false);
   }
 
@@ -969,6 +978,81 @@
       if (el) el.textContent = t;
     });
   }
+
+  /* ---------- 音量 ---------- */
+  function loadVolume() {
+    try {
+      var v = parseFloat(localStorage.getItem(VOLUME_KEY));
+      if (!isNaN(v) && v >= 0 && v <= 1) return v;
+    } catch (e) {}
+    return 1;
+  }
+  function saveVolume(v) { try { localStorage.setItem(VOLUME_KEY, String(v)); } catch (e) {} }
+  function setVolume(v) {
+    volume = Math.min(1, Math.max(0, v));
+    saveVolume(volume);
+    if (apiAudio) apiAudio.volume = volume;
+    var lbl = document.getElementById("vol-label");
+    if (lbl) lbl.textContent = Math.round(volume * 100) + "%";
+    var sl = document.getElementById("vol-slider");
+    if (sl) sl.value = String(Math.round(volume * 100));
+  }
+
+  /* ---------- 倍速（候选列表） ---------- */
+  function setRate(r) {
+    rate = r;
+    var el = document.getElementById("btn-rate");
+    if (el) el.textContent = "倍速 " + rate.toFixed(2).replace(/0$/, "") + "×";
+    document.querySelectorAll(".rate-item").forEach(function (b) {
+      b.classList.toggle("active", parseFloat(b.getAttribute("data-rate")) === rate);
+    });
+    if (engine === "pack") {
+      if (apiAudio) apiAudio.playbackRate = rate; // 语音包直接变速
+    } else {
+      if (engine === "api") resetApiCache();
+      if (playing || paused) restartCurrent();
+    }
+  }
+  function closeRateMenu() {
+    var m = document.getElementById("rate-menu");
+    if (m) m.classList.remove("open");
+  }
+  function closeVolMenu() {
+    var m = document.getElementById("vol-menu");
+    if (m) m.classList.remove("open");
+  }
+
+  /* ---------- 左侧阅读标尺 ---------- */
+  function readRailFraction() {
+    var sent = null;
+    if (engine === "pack" && pack.curSent >= 0 && sentences[pack.curSent]) sent = sentences[pack.curSent];
+    else if (current >= 0 && sentences[current]) sent = sentences[current];
+    if (sent && sent.el) {
+      var r = sent.el.getBoundingClientRect();
+      var top = window.scrollY + r.top + r.height / 2;
+      var docH = document.documentElement.scrollHeight || 1;
+      return top / docH;
+    }
+    var max = document.documentElement.scrollHeight - window.innerHeight;
+    return max > 0 ? window.scrollY / max : 0;
+  }
+  function updateReadRail() {
+    var fill = document.getElementById("read-rail-fill");
+    var dot = document.getElementById("read-rail-dot");
+    if (!fill) return;
+    var f = readRailFraction();
+    if (f < 0) f = 0;
+    if (f > 1) f = 1;
+    fill.style.height = (f * 100).toFixed(2) + "%";
+    if (dot) dot.style.top = (f * 100).toFixed(2) + "%";
+  }
+  (function buildReadRail() {
+    if (document.getElementById("read-rail")) return;
+    var rail = document.createElement("div");
+    rail.id = "read-rail";
+    rail.innerHTML = '<span id="read-rail-fill"></span><i id="read-rail-dot"></i>';
+    document.body.appendChild(rail);
+  })();
 
   var panel = document.getElementById("tts-panel");
   var mini = document.getElementById("tts-mini");
@@ -1134,30 +1218,48 @@
     var el = document.getElementById("tts-help");
     if (el) el.style.display = el.style.display === "block" ? "none" : "block";
   });
-  bind("btn-rate", function () {
-    var rates = [0.75, 1, 1.25, 1.5, 2];
-    var idx = rates.indexOf(rate);
-    rate = rates[(idx + 1) % rates.length];
-    var el = document.getElementById("btn-rate");
-    if (el) el.textContent = "倍速 " + rate.toFixed(2).replace(/0$/, "") + "×";
-    if (engine === "pack") {
-      if (apiAudio) apiAudio.playbackRate = rate; // 语音包直接变速，无需重新下载
-    } else {
-      if (engine === "api") resetApiCache(); // 云端需要按新语速重新合成
-      if (playing || paused) restartCurrent();
-    }
+  bind("btn-rate", function (e) {
+    e.stopPropagation();
+    var m = document.getElementById("rate-menu");
+    if (m) m.classList.toggle("open");
+    closeVolMenu();
   });
+  document.querySelectorAll(".rate-item").forEach(function (b) {
+    b.addEventListener("click", function (e) {
+      e.stopPropagation();
+      setRate(parseFloat(b.getAttribute("data-rate")));
+      closeRateMenu();
+    });
+  });
+  bind("btn-vol", function (e) {
+    e.stopPropagation();
+    var m = document.getElementById("vol-menu");
+    if (m) m.classList.toggle("open");
+    closeRateMenu();
+  });
+  var volSlider = document.getElementById("vol-slider");
+  if (volSlider) {
+    volSlider.addEventListener("input", function () {
+      setVolume(parseInt(volSlider.value, 10) / 100);
+    });
+  }
   bind("btn-voice", function (e) { e.stopPropagation(); nextVoice(); });
   bind("btn-done", toggleDone);
   bind("mini-play", togglePlay);
   bind("btn-expand", expandPanel);
   bind("tts-handle", collapseToMini);
   bind("btn-more", toggleMore);
+  bind("btn-nav-series", openSheet);
   document.addEventListener("click", function () {
     if (moreMenu) moreMenu.classList.remove("open");
+    closeRateMenu();
+    closeVolMenu();
   });
   setPlayIcon();
   updateProgress();
+  setRate(rate);
+  setVolume(volume);
+  updateReadRail();
   updateVoiceBtn();
   updateEngineBtn();
 

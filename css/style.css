@@ -31,8 +31,14 @@ body {
   display: flex; align-items: center; gap: 10px;
   padding: 10px 14px;
 }
-.site-top a { color: #fff; text-decoration: none; font-size: 14px; }
+.site-top a { color: #fff; text-decoration: none; font-size: 14px; display: inline-flex; align-items: center; gap: 5px; }
 .site-top .home { font-weight: 700; white-space: nowrap; }
+.site-top .nav-btn {
+  margin-left: auto; border: 1px solid rgba(255,255,255,.45); background: rgba(255,255,255,.12);
+  color: #fff; border-radius: 999px; padding: 6px 14px; font-size: 13px; cursor: pointer;
+  font-family: inherit; white-space: nowrap;
+}
+.site-top .nav-btn:active { background: rgba(255,255,255,.28); }
 .site-top .crumb { flex: 1; font-size: 13px; opacity: .9; text-align: center; overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap; }
 .site-top .count { font-size: 12px; opacity: .85; white-space: nowrap; }
@@ -333,17 +339,53 @@ body {
 .sent { border-radius: 3px; transition: background .2s; }
 .sent.reading { background: rgba(245,158,11,.09); }
 
-/* ---------- 逐字朗读高亮 & 已读标记 ----------
- * .ch.current = 正在朗读的这一个字（醒目黄）
- * .ch.read    = 已读过的字（淡绿半透明，与未读形成对比）
- * .sent.read  = 整句已读完（更淡的绿，作为整句底色） */
+/* ---------- 逐字朗读高亮 ----------
+ * .ch.current   = 正在朗读的这一个字（醒目黄）
+ * .sent.reading = 正在朗读的整句（浅黄） */
 .ch { border-radius: 2px; transition: background .12s ease; }
 .ch.current { background: var(--read); box-shadow: 0 0 0 1px rgba(245,158,11,.45); }
-.ch.read { background: rgba(18,94,87,.09); }
-.sent.read { background: rgba(18,94,87,.06); }
 
 /* 引擎按钮：当前选中的朗读方式反色 */
 .btn-mini.active { background: var(--teal); color: #fff; }
+
+/* ---------- 倍速 / 音量 小弹层 ---------- */
+.mini-pop-wrap { position: relative; }
+.mini-pop {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  bottom: calc(100% + 12px); display: none;
+  background: rgba(255,255,255,.95);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  backdrop-filter: blur(20px) saturate(1.5);
+  border: 1px solid rgba(255,255,255,.65);
+  border-radius: 14px; box-shadow: 0 14px 34px rgba(10,61,56,.22);
+  z-index: 175; padding: 6px;
+}
+.mini-pop.open { display: block; }
+.rate-menu { display: flex; flex-direction: column; gap: 2px; min-width: 96px; }
+.rate-menu .rate-item { width: 100%; text-align: center; }
+.rate-menu .rate-item.active { background: var(--teal); color: #fff; }
+.vol-menu { display: flex; align-items: center; gap: 8px; min-width: 170px; padding: 10px 12px; }
+.vol-menu.open { display: flex; }
+.vol-menu input[type="range"] { flex: 1; accent-color: var(--teal); cursor: pointer; }
+.vol-menu .vol-label { font-size: 12.5px; color: #475569; min-width: 40px; text-align: right; }
+
+/* ---------- 左侧阅读标尺（细长贯穿全文，颜色由浅到深） ---------- */
+#read-rail {
+  position: fixed; left: 3px; top: 0; height: 100vh; width: 4px;
+  background: rgba(18,94,87,.10); border-radius: 2px;
+  z-index: 145; pointer-events: none;
+}
+#read-rail-fill {
+  position: absolute; left: 0; top: 0; width: 100%; height: 0;
+  background: linear-gradient(180deg, rgba(18,94,87,.16), rgba(18,94,87,.78));
+  border-radius: 2px; transition: height .25s ease;
+}
+#read-rail-dot {
+  position: absolute; left: 50%; top: 0; transform: translate(-50%, -50%);
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #0e5f57; box-shadow: 0 0 0 2px rgba(255,255,255,.75);
+  transition: top .25s ease;
+}
 
 /* ---------- page nav ---------- */
 .page-nav { display: flex; gap: 10px; margin: 18px 0; }
