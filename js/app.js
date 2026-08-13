@@ -527,7 +527,8 @@
         input: text,
         voice: API_VOICES[apiVoiceIdx].id,
         speed: rate,
-        pitch: "0"
+        pitch: "0",
+        "stream": true   // 开启流式播放
       })
     }).then(function (resp) {
       if (!resp.ok) {
