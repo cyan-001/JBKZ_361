@@ -6,8 +6,16 @@
 
   /* ---------- 常量 ---------- */
   var SUPPORTED = "speechSynthesis" in window;
-  // 云端调用朗读：来自《语音包来源》的 edge-tts 风格 Worker 接口
-  var WORKER_URL = "https://tts-voice-magic2026.screenbks-89d.workers.dev/v1/audio/speech";
+  /* ============================================================
+   * 云端 TTS Worker 配置
+   * 新 Worker 基于 icheer/edgetts-cloudflare-workers-webui：
+   *   - 接口：POST {WORKER_URL}/v1/audio/speech（OpenAI 兼容）
+   *   - 认证：请求头 Authorization: Bearer <API_KEY>（Worker 未设 API_KEY 时可留空）
+   *   - 请求体：{model, input, voice, speed, pitch, stream:true}
+   *   - stream:true 时收到第一个音频块就立即回传（流式）
+   * ============================================================ */
+  var WORKER_URL = "https://edge-tts-stream813.screenbks-89d.workers.dev/v1/audio/speech";
+  var WORKER_API_KEY = ""; // 若 Worker 部署时设置了 API_KEY，请填在这里；未设置则留空
   var API_VOICES = [
     { id: "zh-CN-XiaohanNeural",  name: "晓涵（优雅女声）" },
     { id: "zh-CN-XiaoxiaoNeural", name: "晓晓（温柔女声）" },
@@ -644,14 +652,17 @@
   // 请求体固定开启 stream:true，让 Worker 流式返回
   function fetchApiAudio(text) {
     if (typeof fetch !== "function") return Promise.reject(new Error("当前浏览器不支持网络请求"));
+    var headers = { "Content-Type": "application/json" };
+    if (WORKER_API_KEY) headers.Authorization = "Bearer " + WORKER_API_KEY;
     return fetch(WORKER_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: headers,
       body: JSON.stringify({
+        model: "tts-1",
         input: text,
         voice: API_VOICES[apiVoiceIdx].id,
         speed: rate,
-        pitch: "0",
+        pitch: 1.0,
         "stream": true   // 开启流式播放
       })
     }).then(function (resp) {
