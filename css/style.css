@@ -344,6 +344,8 @@ body {
  * .sent.reading = 正在朗读的整句（浅黄） */
 .ch { border-radius: 2px; transition: background .12s ease; }
 .ch.current { background: var(--read); box-shadow: 0 0 0 1px rgba(245,158,11,.45); }
+.ch.read { background: rgba(18,94,87,.08); }
+.sent.read { background: rgba(18,94,87,.06); }
 
 /* 标黄重点/考点知识点加粗 */
 #article-content span[style*="background-color:#fff1a8"] { font-weight: 700; }

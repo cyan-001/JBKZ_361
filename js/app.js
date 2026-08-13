@@ -835,6 +835,36 @@
     }
   }
 
+  /* ---------- 朗读点居中跟随：朗读时朗读行持续保持在屏幕中间 ---------- */
+  var followTimer = null;
+  function hasReadPoint() {
+    return current >= 0 || pack.curSent >= 0;
+  }
+  function currentReadEl() {
+    var idx = engine === "pack" && pack.curSent >= 0 ? pack.curSent : current;
+    return sentences[idx] && sentences[idx].el;
+  }
+  function centerReadLine() {
+    scrollCurrentIntoView();
+  }
+  function startFollow() {
+    if (followTimer) return;
+    followTimer = setInterval(function () {
+      if (!playing || !hasReadPoint()) return;
+      var el = currentReadEl();
+      if (!el) return;
+      var r = el.getBoundingClientRect();
+      var cy = r.top + r.height / 2;
+      var vh = window.innerHeight || document.documentElement.clientHeight;
+      if (Math.abs(cy - vh / 2) > vh * 0.25) {
+        try { el.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (e) {}
+      }
+    }, 1200);
+  }
+  function stopFollow() {
+    if (followTimer) { clearInterval(followTimer); followTimer = null; }
+  }
+
   function play() {
     if (engine === "local" && !SUPPORTED) { showFallback(); return; }
     if (paused && current >= 0) { resume(); return; }
@@ -843,6 +873,7 @@
     playing = true;
     paused = false;
     setPlayIcon();
+    startFollow();
     if (engine === "local") keepAudioSession(true);
     speakIndex(start, 0);
   }
@@ -891,6 +922,7 @@
   function stop() {
     playing = false;
     paused = false;
+    stopFollow();
     pack.segIdx = -1;
     pack.lastDoneSent = -1;
     stopLocalTick();
@@ -1053,6 +1085,10 @@
     disarmIdleCollapse();
     idleTimer = setTimeout(function () {
       collapseToMini();
+      if (hasReadPoint()) {
+        centerReadLine();
+        if (playing) startFollow();
+      }
     }, 10000);
   }
   function disarmIdleCollapse() {
@@ -1188,6 +1224,7 @@
   bind("btn-back", function () {
     if (current < 0 && pack.curSent < 0) { setStatus("还没有开始朗读"); return; }
     scrollCurrentIntoView();
+    startFollow();
     setStatus("已回到朗读位置");
   });
   bind("btn-help", function (e) {
@@ -1417,6 +1454,7 @@
       playing = true;
       paused = false;
       setPlayIcon();
+      startFollow();
       speakIndex(idx, startNS);
     });
   }
