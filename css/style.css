@@ -315,7 +315,6 @@ body {
 
 /* ---------- sentence highlight ---------- */
 .sent { border-radius: 3px; transition: background .2s; }
-.sent.read { background: rgba(18,94,87,.06); }
 .sent.reading { background: rgba(255,140,0,.16); }
 
 /* ---------- 逐字朗读高亮 ----------
@@ -323,7 +322,16 @@ body {
  * .sent.reading = 正在朗读的整句（浅黄） */
 .ch { border-radius: 2px; transition: background .12s ease; }
 .ch.current { background: var(--read); box-shadow: 0 0 0 1px rgba(245,158,11,.45); }
-.ch.read { background: rgba(18,94,87,.08); }
+
+/* 章节标题右侧“习题”按钮（与标题同高，跳转匹配题，无朗读） */
+.chapter-exercise-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  margin-left: auto; padding: 7px 18px; border-radius: 999px;
+  background: #fff; color: #0e5f57; font-size: 15px; font-weight: 700;
+  text-decoration: none; box-shadow: 0 2px 8px rgba(10,61,56,.18);
+  flex: none; line-height: 1.4; cursor: pointer;
+}
+.chapter-exercise-btn:active { transform: scale(.95); }
 
 /* 标黄重点/考点知识点加粗 */
 #article-content span[style*="background-color:#fff1a8"] { font-weight: 700; }

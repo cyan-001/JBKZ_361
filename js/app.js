@@ -1278,6 +1278,43 @@
   updateVoiceBtn();
   updateEngineBtn();
 
+  /* ---------- 章节标题右侧“习题”按钮（跳转匹配题，习题页无朗读） ---------- */
+  var CHAPTER_EXERCISES = {
+    "01": "ch1-医学免疫.html", "02": "ch1-医学免疫.html", "03": "ch1-医学免疫.html",
+    "04": "ch2-卫生统计学.html", "05": "ch2-卫生统计学.html",
+    "06": "ch3-卫生法.html",
+    "07": "ch4-卫生经济与医学伦理学.html",
+    "08": "ch5-流行病学.html", "09": "ch5-流行病学.html",
+    "10": "ch6-健康教育与健康促进.html", "11": "ch6-健康教育与健康促进.html",
+    "12": "ch7-社会医学.html",
+    "13": "ch8-卫生信息管理与信息技术应用.html",
+    "14": "ch9-专业知识和专业实践能力（急慢性传染病、媒介生物控制、消毒、医院感染）.html",
+    "15": "ch9-专业知识和专业实践能力（急慢性传染病、媒介生物控制、消毒、医院感染）.html",
+    "16": "ch9-专业知识和专业实践能力（急慢性传染病、媒介生物控制、消毒、医院感染）.html",
+    "17": "ch9-专业知识和专业实践能力（急慢性传染病、媒介生物控制、消毒、医院感染）.html",
+    "18": "ch9-专业知识和专业实践能力（急慢性传染病、媒介生物控制、消毒、医院感染）.html",
+    "19": "ch10-预防接种.html",
+    "20": "ch11-寄生虫病.html", "21": "ch11-寄生虫病.html",
+    "22": "ch12-地方病.html",
+    "23": "ch13-慢性非传染性疾病.html", "24": "ch13-慢性非传染性疾病.html"
+  };
+  function buildExerciseButton() {
+    if (!articleId || !CHAPTER_EXERCISES[articleId]) return;
+    var titleEl = document.querySelector('#article-content div[style*="font-size:23px"]');
+    if (!titleEl || titleEl.querySelector(".chapter-exercise-btn")) return;
+    var a = document.createElement("a");
+    a.className = "chapter-exercise-btn";
+    a.href = "../exercises/" + CHAPTER_EXERCISES[articleId];
+    a.textContent = "习题";
+    a.title = "打开本章匹配题（无朗读）";
+    titleEl.style.display = "flex";
+    titleEl.style.alignItems = "center";
+    titleEl.style.justifyContent = "space-between";
+    titleEl.style.flexWrap = "wrap";
+    titleEl.appendChild(a);
+  }
+  buildExerciseButton();
+
   /* ---------- 目录 / 导航 弹层 ---------- */
   var overlay = document.getElementById("sheet-overlay");
   var sheet = document.getElementById("sheet");
