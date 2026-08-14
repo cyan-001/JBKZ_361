@@ -313,28 +313,6 @@ body {
   scroll-margin-top: 64px;
 }
 
-/* ---------- 右侧贴边上下滑动控制条 ---------- */
-#scroll-rail {
-  position: fixed; right: 25%; top: 50%; transform: translateY(-50%);
-  z-index: 140; width: 38px; height: 132px; border-radius: 19px;
-  display: flex; flex-direction: column; overflow: hidden;
-  background: rgba(255,255,255,.55);
-  -webkit-backdrop-filter: blur(18px) saturate(1.5);
-  backdrop-filter: blur(18px) saturate(1.5);
-  border: 1px solid rgba(255,255,255,.55);
-  box-shadow: 0 8px 24px rgba(10,61,56,.16);
-}
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  #scroll-rail { background: rgba(255,255,255,.92); }
-}
-.scroll-btn {
-  flex: 1; border: none; background: transparent; color: #0e5f57;
-  display: flex; align-items: center; justify-content: center; cursor: pointer;
-  transition: background .15s ease, transform .15s ease;
-}
-.scroll-btn:active { background: rgba(14,95,87,.14); transform: scale(.9); }
-.scroll-up { border-bottom: 1px solid rgba(14,95,87,.12); }
-
 /* ---------- sentence highlight ---------- */
 .sent { border-radius: 3px; transition: background .2s; }
 .sent.read { background: rgba(18,94,87,.06); }
@@ -379,26 +357,13 @@ body {
 .rate-menu .rate-item { width: 100%; text-align: center; }
 .rate-menu .rate-item.active { background: var(--teal); color: #fff; }
 
-/* ---------- 当前朗读句左侧动态音波（紧贴句子左边缘，播放时起伏） ---------- */
-#read-wave {
+/* ---------- 当前朗读行左侧三角形（底边贴白色背景左缘，尖角指向朗读段落） ---------- */
+#read-tri {
   position: fixed; display: none; z-index: 160; pointer-events: none;
-  width: 11px; height: 22px;
-  align-items: center; justify-content: space-between; gap: 1.5px;
+  width: 12px; height: 12px;
 }
-#read-wave.on { display: flex; }
-#read-wave i {
-  width: 2px; border-radius: 1px; background: rgba(255,140,0,.95);
-  animation: readWave .9s ease-in-out infinite;
-}
-#read-wave i:nth-child(1) { animation-delay: 0s; }
-#read-wave i:nth-child(2) { animation-delay: .12s; }
-#read-wave i:nth-child(3) { animation-delay: .24s; }
-#read-wave i:nth-child(4) { animation-delay: .36s; }
-#read-wave i:nth-child(5) { animation-delay: .18s; }
-@keyframes readWave {
-  0%, 100% { height: 4px; }
-  50% { height: 20px; }
-}
+#read-tri.on { display: block; }
+#read-tri svg { width: 12px; height: 12px; display: block; }
 
 /* ---------- 左侧阅读动态竖条：从文章顶部到当前阅读行，随进度拉长/缩短 ---------- */
 #read-bar {

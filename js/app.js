@@ -56,7 +56,7 @@
     var p = max > 0 ? (h.scrollTop / max) : 0;
     bar.style.width = (p * 100).toFixed(2) + "%";
     saveReading(p);
-    positionReadWave(); positionReadBar();
+    positionReadTri(); positionReadBar();
   }
   window.addEventListener("scroll", onScroll, { passive: true });
 
@@ -771,7 +771,7 @@
     if (frac > 1) frac = 1;
     var curRaw = seg.s + (seg.e - seg.s) * frac;
     markPackRange(seg.s, curRaw);
-    positionReadWave(); positionReadBar();
+    positionReadTri(); positionReadBar();
   }
 
   function packFail() {
@@ -798,7 +798,7 @@
     paused = false;
     updateProgress();
     scrollCurrentIntoView();
-    positionReadWave(); positionReadBar();
+    positionReadTri(); positionReadBar();
     var text = cleanForSpeech(sentences[i].text);
     if (!text) { advanceAfterSilence(); return; }
     if (engine === "api") speakApi(i, charStart || 0);
@@ -937,7 +937,7 @@
     setStatus("");
     setPlayIcon();
     updateProgress();
-    positionReadWave(); positionReadBar();
+    positionReadTri(); positionReadBar();
     keepAudioSession(false);
   }
 
@@ -1026,23 +1026,25 @@
     var m = document.getElementById("rate-menu");
     if (m) m.classList.remove("open");
   }
-  /* ---------- 当前朗读句左侧动态音波（紧贴句子左边缘） ---------- */
-  function positionReadWave() {
-    var wave = document.getElementById("read-wave");
-    if (!wave) return;
+  /* ---------- 当前朗读行左侧三角形（底边贴白色背景左缘，尖角指向朗读段落） ---------- */
+  function positionReadTri() {
+    var tri = document.getElementById("read-tri");
+    if (!tri) return;
     var el = currentReadEl();
-    if (!el || !playing) { wave.classList.remove("on"); return; }
+    var shell = document.querySelector(".article-shell");
+    if (!el || !shell) { tri.classList.remove("on"); return; }
+    var sr = shell.getBoundingClientRect();
     var r = el.getBoundingClientRect();
-    wave.style.left = (r.left - 15) + "px";
-    wave.style.top = (r.top + r.height / 2 - 11) + "px";
-    wave.classList.add("on");
+    tri.style.left = sr.left + "px";
+    tri.style.top = (r.top + r.height / 2 - 6) + "px";
+    tri.classList.add("on");
   }
-  (function buildReadWave() {
-    if (document.getElementById("read-wave")) return;
-    var wave = document.createElement("div");
-    wave.id = "read-wave";
-    wave.innerHTML = "<i></i><i></i><i></i><i></i><i></i>";
-    document.body.appendChild(wave);
+  (function buildReadTri() {
+    if (document.getElementById("read-tri")) return;
+    var tri = document.createElement("div");
+    tri.id = "read-tri";
+    tri.innerHTML = '<svg viewBox="0 0 12 12" aria-hidden="true"><polygon points="0,0 12,6 0,12" fill="rgba(255,140,0,.95)"/></svg>';
+    document.body.appendChild(tri);
   })();
 
   /* ---------- 左侧阅读动态竖条：从文章顶部到当前阅读行，随进度拉长/缩短 ---------- */
@@ -1058,7 +1060,9 @@
     var artDoc = ar.top + window.scrollY;
     var h = Math.max(0, lineDoc - artDoc);
     if (h > article.scrollHeight) h = article.scrollHeight;
-    bar.style.left = (r.left - 12) + "px";
+    var shell = document.querySelector(".article-shell");
+    var shellLeft = shell ? shell.getBoundingClientRect().left : r.left;
+    bar.style.left = shellLeft + "px"; // 严格贴在白色背景最左边
     bar.style.top = ar.top + "px";
     bar.style.height = h + "px";
   }
@@ -1269,7 +1273,7 @@
   setPlayIcon();
   updateProgress();
   setRate(rate);
-  positionReadWave(); positionReadBar();
+  positionReadTri(); positionReadBar();
   window.addEventListener("resize", positionReadBar);
   updateVoiceBtn();
   updateEngineBtn();
@@ -1439,7 +1443,7 @@
   if (content) {
     content.addEventListener("click", function (e) {
       if (engine === "local" && !SUPPORTED) { showFallback(); return; }
-      if (e.target.closest && e.target.closest("button, a, .sheet, .tts-bar, .tts-mini, #scroll-rail")) return;
+      if (e.target.closest && e.target.closest("button, a, .sheet, .tts-bar, .tts-mini")) return;
       var ch = e.target.closest && e.target.closest(".ch");
       var s = e.target.closest && e.target.closest(".sent");
       var idx = s ? parseInt(s.getAttribute("data-i"), 10) : -1;
@@ -1470,27 +1474,6 @@
       speakIndex(idx, startNS);
     });
   }
-
-  /* 右侧贴边上下滑动控制条 */
-  (function buildScrollRail() {
-    if (document.getElementById("scroll-rail")) return;
-    var rail = document.createElement("div");
-    rail.id = "scroll-rail";
-    rail.innerHTML =
-      '<button class="scroll-btn scroll-up" aria-label="向上滚动">' +
-        '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 6l8 8H4z"/></svg>' +
-      '</button>' +
-      '<button class="scroll-btn scroll-down" aria-label="向下滚动">' +
-        '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 18l-8-8h16z"/></svg>' +
-      '</button>';
-    document.body.appendChild(rail);
-    function scrollByScreen(dir) {
-      var h = window.innerHeight || document.documentElement.clientHeight;
-      window.scrollBy({ top: h * 0.8 * dir, behavior: "smooth" });
-    }
-    rail.querySelector(".scroll-up").addEventListener("click", function () { scrollByScreen(-1); });
-    rail.querySelector(".scroll-down").addEventListener("click", function () { scrollByScreen(1); });
-  })();
 
   var stateEl = document.getElementById("reading-state");
   if (stateEl && articleId) {
