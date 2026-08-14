@@ -56,7 +56,7 @@
     var p = max > 0 ? (h.scrollTop / max) : 0;
     bar.style.width = (p * 100).toFixed(2) + "%";
     saveReading(p);
-    positionReadWave();
+    positionReadWave(); positionReadBar();
   }
   window.addEventListener("scroll", onScroll, { passive: true });
 
@@ -771,7 +771,7 @@
     if (frac > 1) frac = 1;
     var curRaw = seg.s + (seg.e - seg.s) * frac;
     markPackRange(seg.s, curRaw);
-    positionReadWave();
+    positionReadWave(); positionReadBar();
   }
 
   function packFail() {
@@ -798,7 +798,7 @@
     paused = false;
     updateProgress();
     scrollCurrentIntoView();
-    positionReadWave();
+    positionReadWave(); positionReadBar();
     var text = cleanForSpeech(sentences[i].text);
     if (!text) { advanceAfterSilence(); return; }
     if (engine === "api") speakApi(i, charStart || 0);
@@ -937,7 +937,7 @@
     setStatus("");
     setPlayIcon();
     updateProgress();
-    positionReadWave();
+    positionReadWave(); positionReadBar();
     keepAudioSession(false);
   }
 
@@ -1043,6 +1043,30 @@
     wave.id = "read-wave";
     wave.innerHTML = "<i></i><i></i><i></i><i></i><i></i>";
     document.body.appendChild(wave);
+  })();
+
+  /* ---------- 左侧阅读动态竖条：从文章顶部到当前阅读行，随进度拉长/缩短 ---------- */
+  function positionReadBar() {
+    var bar = document.getElementById("read-bar");
+    var el = currentReadEl();
+    var article = document.getElementById("article-content");
+    if (!bar || !article) return;
+    if (!el) { bar.style.height = "0"; return; }
+    var ar = article.getBoundingClientRect();
+    var r = el.getBoundingClientRect();
+    var lineDoc = r.top + window.scrollY + r.height / 2;
+    var artDoc = ar.top + window.scrollY;
+    var h = Math.max(0, lineDoc - artDoc);
+    if (h > article.scrollHeight) h = article.scrollHeight;
+    bar.style.left = (r.left - 12) + "px";
+    bar.style.top = ar.top + "px";
+    bar.style.height = h + "px";
+  }
+  (function buildReadBar() {
+    if (document.getElementById("read-bar")) return;
+    var b = document.createElement("div");
+    b.id = "read-bar";
+    document.body.appendChild(b);
   })();
 
   var panel = document.getElementById("tts-panel");
@@ -1245,7 +1269,8 @@
   setPlayIcon();
   updateProgress();
   setRate(rate);
-  positionReadWave();
+  positionReadWave(); positionReadBar();
+  window.addEventListener("resize", positionReadBar);
   updateVoiceBtn();
   updateEngineBtn();
 
