@@ -56,7 +56,7 @@
     var p = max > 0 ? (h.scrollTop / max) : 0;
     bar.style.width = (p * 100).toFixed(2) + "%";
     saveReading(p);
-    updateReadRail();
+    positionReadWave();
   }
   window.addEventListener("scroll", onScroll, { passive: true });
 
@@ -771,7 +771,7 @@
     if (frac > 1) frac = 1;
     var curRaw = seg.s + (seg.e - seg.s) * frac;
     markPackRange(seg.s, curRaw);
-    updateReadRail();
+    positionReadWave();
   }
 
   function packFail() {
@@ -798,7 +798,7 @@
     paused = false;
     updateProgress();
     scrollCurrentIntoView();
-    updateReadRail();
+    positionReadWave();
     var text = cleanForSpeech(sentences[i].text);
     if (!text) { advanceAfterSilence(); return; }
     if (engine === "api") speakApi(i, charStart || 0);
@@ -937,7 +937,7 @@
     setStatus("");
     setPlayIcon();
     updateProgress();
-    updateReadRail();
+    positionReadWave();
     keepAudioSession(false);
   }
 
@@ -1026,36 +1026,23 @@
     var m = document.getElementById("rate-menu");
     if (m) m.classList.remove("open");
   }
-  /* ---------- 左侧阅读标尺 ---------- */
-  function readRailFraction() {
-    var sent = null;
-    if (engine === "pack" && pack.curSent >= 0 && sentences[pack.curSent]) sent = sentences[pack.curSent];
-    else if (current >= 0 && sentences[current]) sent = sentences[current];
-    if (sent && sent.el) {
-      var r = sent.el.getBoundingClientRect();
-      var top = window.scrollY + r.top + r.height / 2;
-      var docH = document.documentElement.scrollHeight || 1;
-      return top / docH;
-    }
-    var max = document.documentElement.scrollHeight - window.innerHeight;
-    return max > 0 ? window.scrollY / max : 0;
+  /* ---------- 当前朗读句左侧动态音波（紧贴句子左边缘） ---------- */
+  function positionReadWave() {
+    var wave = document.getElementById("read-wave");
+    if (!wave) return;
+    var el = currentReadEl();
+    if (!el || !playing) { wave.classList.remove("on"); return; }
+    var r = el.getBoundingClientRect();
+    wave.style.left = (r.left - 15) + "px";
+    wave.style.top = (r.top + r.height / 2 - 11) + "px";
+    wave.classList.add("on");
   }
-  function updateReadRail() {
-    var fill = document.getElementById("read-rail-fill");
-    var dot = document.getElementById("read-rail-dot");
-    if (!fill) return;
-    var f = readRailFraction();
-    if (f < 0) f = 0;
-    if (f > 1) f = 1;
-    fill.style.height = (f * 100).toFixed(2) + "%";
-    if (dot) dot.style.top = (f * 100).toFixed(2) + "%";
-  }
-  (function buildReadRail() {
-    if (document.getElementById("read-rail")) return;
-    var rail = document.createElement("div");
-    rail.id = "read-rail";
-    rail.innerHTML = '<span id="read-rail-fill"></span><i id="read-rail-dot"></i>';
-    document.body.appendChild(rail);
+  (function buildReadWave() {
+    if (document.getElementById("read-wave")) return;
+    var wave = document.createElement("div");
+    wave.id = "read-wave";
+    wave.innerHTML = "<i></i><i></i><i></i><i></i><i></i>";
+    document.body.appendChild(wave);
   })();
 
   var panel = document.getElementById("tts-panel");
@@ -1258,7 +1245,7 @@
   setPlayIcon();
   updateProgress();
   setRate(rate);
-  updateReadRail();
+  positionReadWave();
   updateVoiceBtn();
   updateEngineBtn();
 

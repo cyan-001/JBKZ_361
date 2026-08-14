@@ -336,8 +336,18 @@ body {
 .scroll-up { border-bottom: 1px solid rgba(14,95,87,.12); }
 
 /* ---------- sentence highlight ---------- */
-.sent { border-radius: 3px; transition: background .2s; }
-.sent.reading { background: rgba(245,158,11,.09); }
+.sent {
+  border-radius: 3px; transition: background .2s, box-shadow .2s;
+  box-shadow: inset 2px 0 0 rgba(148,163,184,.35); /* 未读：浅灰竖条 */
+}
+.sent.read {
+  background: rgba(18,94,87,.06);
+  box-shadow: inset 2px 0 0 rgba(18,94,87,.6);     /* 已读：深青竖条 */
+}
+.sent.reading {
+  background: rgba(255,140,0,.16);                 /* 当前句：半透明橙色 */
+  box-shadow: inset 3px 0 0 rgba(255,140,0,.85);   /* 当前句：橙色竖条 */
+}
 
 /* ---------- 逐字朗读高亮 ----------
  * .ch.current   = 正在朗读的这一个字（醒目黄）
@@ -345,7 +355,6 @@ body {
 .ch { border-radius: 2px; transition: background .12s ease; }
 .ch.current { background: var(--read); box-shadow: 0 0 0 1px rgba(245,158,11,.45); }
 .ch.read { background: rgba(18,94,87,.08); }
-.sent.read { background: rgba(18,94,87,.06); }
 
 /* 标黄重点/考点知识点加粗 */
 #article-content span[style*="background-color:#fff1a8"] { font-weight: 700; }
@@ -379,22 +388,25 @@ body {
 .rate-menu .rate-item { width: 100%; text-align: center; }
 .rate-menu .rate-item.active { background: var(--teal); color: #fff; }
 
-/* ---------- 左侧阅读标尺（细长贯穿全文，颜色由浅到深） ---------- */
-#read-rail {
-  position: fixed; left: 3px; top: 0; height: 100vh; width: 4px;
-  background: rgba(18,94,87,.10); border-radius: 2px;
-  z-index: 145; pointer-events: none;
+/* ---------- 当前朗读句左侧动态音波（紧贴句子左边缘，播放时起伏） ---------- */
+#read-wave {
+  position: fixed; display: none; z-index: 160; pointer-events: none;
+  width: 11px; height: 22px;
+  align-items: center; justify-content: space-between; gap: 1.5px;
 }
-#read-rail-fill {
-  position: absolute; left: 0; top: 0; width: 100%; height: 0;
-  background: linear-gradient(180deg, rgba(18,94,87,.16), rgba(18,94,87,.78));
-  border-radius: 2px; transition: height .25s ease;
+#read-wave.on { display: flex; }
+#read-wave i {
+  width: 2px; border-radius: 1px; background: rgba(255,140,0,.95);
+  animation: readWave .9s ease-in-out infinite;
 }
-#read-rail-dot {
-  position: absolute; left: 50%; top: 0; transform: translate(-50%, -50%);
-  width: 10px; height: 10px; border-radius: 50%;
-  background: #0e5f57; box-shadow: 0 0 0 2px rgba(255,255,255,.75);
-  transition: top .25s ease;
+#read-wave i:nth-child(1) { animation-delay: 0s; }
+#read-wave i:nth-child(2) { animation-delay: .12s; }
+#read-wave i:nth-child(3) { animation-delay: .24s; }
+#read-wave i:nth-child(4) { animation-delay: .36s; }
+#read-wave i:nth-child(5) { animation-delay: .18s; }
+@keyframes readWave {
+  0%, 100% { height: 4px; }
+  50% { height: 20px; }
 }
 
 /* ---------- page nav ---------- */
